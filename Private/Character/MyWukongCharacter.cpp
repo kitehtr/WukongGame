@@ -133,14 +133,17 @@ void AMyWukongCharacter::EnableWalk()
 
 void AMyWukongCharacter::MainAttack()
 {
-	if (bIsAttacking) return; 
+	if (bIsAttacking)
+	{
+		return;
+	}
 
-	
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 	if (AnimInstance && MainAttackMontage)
 	{
 		AlreadyHitActors.Empty();
 		bIsAttacking = true;
+		CurrentAttackType = EAttackType::BasicAttack;
 		int32 const SectionCount = MainAttackMontage->CompositeSections.Num();
 
 		FName const SectionName = GetAttackSectionName(SectionCount);
@@ -155,6 +158,29 @@ void AMyWukongCharacter::MainAttack()
 	}
 }
 
+void AMyWukongCharacter::HeavyAttack()
+{
+	if (bIsAttacking || bIsHeavyAttacking)
+	{
+		return;
+	}
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+	if (AnimInstance && HeavyAttackMontage)
+	{
+		AlreadyHitActors.Empty();
+		bIsHeavyAttacking = true;
+		CurrentAttackType = EAttackType::HeavyAttack;
+		int32 const HeavySectionCount = HeavyAttackMontage->CompositeSections.Num();
+
+		FName const HeavySectionName = GetHeavyAttackSectionName(HeavySectionCount);
+
+		GetCharacterMovement()->DisableMovement();
+
+		AnimInstance->Montage_Play(HeavyAttackMontage);
+		AnimInstance->Montage_JumpToSection(HeavySectionName, HeavyAttackMontage);
+	}
+}
+
 void AMyWukongCharacter::EnableMovement()
 {
 	GetCharacterMovement()->SetMovementMode(MOVE_Walking);
@@ -162,7 +188,7 @@ void AMyWukongCharacter::EnableMovement()
 
 FName AMyWukongCharacter::GetAttackSectionName(int32 SectionCount)
 {
-	TArray<FName> AttackSections = { "Attack1", "Attack2"};
+	TArray<FName> AttackSections = { "Attack1", "Attack2", "Attack3"};
 
 	if (ComboCounter >= AttackSections.Num())
 	{
@@ -173,6 +199,21 @@ FName AMyWukongCharacter::GetAttackSectionName(int32 SectionCount)
 	ComboCounter++;
 
 	return SectionName;
+}
+
+FName AMyWukongCharacter::GetHeavyAttackSectionName(int32 HeavySectionCount)
+{
+	TArray<FName> HeavyAttackSections = { "HeavyAttack1", "HeavyAttack2"};
+
+	if (HeavyAttackComboCounter >= HeavyAttackSections.Num())
+	{
+		HeavyAttackComboCounter = 0;
+	}
+
+	FName HeavySectionName = HeavyAttackSections[HeavyAttackComboCounter % HeavyAttackSections.Num()];
+	HeavyAttackComboCounter++;
+
+	return HeavySectionName;
 }
 
 void AMyWukongCharacter::OnRightWeaponOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
@@ -205,8 +246,20 @@ void AMyWukongCharacter::OnRightWeaponOverlap(UPrimitiveComponent* OverlappedCom
 			MeleeHitInterface->MeleeHit_Implementation(SweepResult);
 		}
 
-		float const WeaponDamage = 10.0f;
-		UGameplayStatics::ApplyDamage(SweepResult.GetActor(), BaseDamage, GetController(), this, UDamageType::StaticClass());
+		float WeaponDamage = 0.0f;
+		switch (CurrentAttackType)
+		{
+		case EAttackType::BasicAttack:
+			WeaponDamage = BaseDamage;
+			break;
+		case EAttackType::HeavyAttack:
+			WeaponDamage = HeavyAttackDamage;
+			break;
+		default:
+			WeaponDamage = BaseDamage;
+			break;
+		}
+		UGameplayStatics::ApplyDamage(SweepResult.GetActor(), WeaponDamage, GetController(), this, UDamageType::StaticClass());
 			
 	}
 	
@@ -247,6 +300,8 @@ void AMyWukongCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 	PlayerInputComponent->BindAction("Recall", IE_Pressed, this, &AMyWukongCharacter::Recall);
 
 	PlayerInputComponent->BindAction("MainAttack", IE_Pressed, this, &AMyWukongCharacter::MainAttack);
+
+	PlayerInputComponent->BindAction("HeavyAttack", IE_Pressed, this, &AMyWukongCharacter::HeavyAttack);
 }
 
 void AMyWukongCharacter::ActivateRightWeapon()
@@ -260,6 +315,7 @@ void AMyWukongCharacter::DeactivateRightWeapon()
 	//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("Deactivate Weapon"));
 	RightWeaponCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	bIsAttacking = false;
+	bIsHeavyAttacking = false;
 	FTimerHandle MovementTimerHandle;
 	GetWorld()->GetTimerManager().SetTimer(MovementTimerHandle,this,&AMyWukongCharacter::EnableMovement, DelayTimeForAttack, false);
 	/*GetCharacterMovement()->SetMovementMode(MOVE_Walking);*/

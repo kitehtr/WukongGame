@@ -13,6 +13,14 @@ class USpringArmComponent;
 class UCameraComponent;
 class UAnimMontage;
 
+UENUM(BlueprintType)
+enum class EAttackType : uint8
+{
+	None,
+	BasicAttack,
+	HeavyAttack
+};
+
 UCLASS()
 class WUKONG_API AMyWukongCharacter : public ACharacter, public IWukongCharacterInterface
 {
@@ -51,7 +59,11 @@ protected:
 
 	FName GetAttackSectionName(int32 SectionCount);
 
+	FName GetHeavyAttackSectionName(int32 HeavySectionCount);
+
 	void MainAttack();
+
+	void HeavyAttack();
 
 	void EnableMovement();
 
@@ -83,9 +95,12 @@ private:
 	float DelayTimeForAttack = 0.2f;
 
 	int32 ComboCounter;
+	
+	int32 HeavyAttackComboCounter;
 
 	FTimerHandle TimerMovementWalking;
 
+	//Montages
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Montage", meta = (AllowPrivateAccess = "true"))
 	UAnimMontage* RecallMontage;
 
@@ -93,8 +108,12 @@ private:
 	UAnimMontage* MainAttackMontage;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Montage", meta = (AllowPrivateAccess = "true"))
+	UAnimMontage* HeavyAttackMontage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Montage", meta = (AllowPrivateAccess = "true"))
 	UBoxComponent* RightWeaponCollision;
 
+	//Damage Calculations and Attacking
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))
 	float BaseDamage;
 
@@ -104,9 +123,20 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))
 	float MaxHealth;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat",meta = (AllowPrivateAccess = "true"))
 	bool bIsAttacking;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))
+	bool bIsHeavyAttacking;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))
+	float HeavyAttackDamage;
 
 	void ResetCombo();
 
 	TSet<AActor*> AlreadyHitActors;
+
+	
+	EAttackType CurrentAttackType;
+
 };
