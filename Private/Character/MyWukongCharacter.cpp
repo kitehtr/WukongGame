@@ -214,6 +214,18 @@ FName AMyWukongCharacter::GetHeavyAttackSectionName(int32 HeavySectionCount)
 	FName HeavySectionName = HeavyAttackSections[HeavyAttackComboCounter % HeavyAttackSections.Num()];
 	HeavyAttackComboCounter++;
 
+	RightWeaponCollision->SetRelativeScale3D(FVector(1.25f, 1.0f, 4.0f));
+
+	if (HeavySectionName == "HeavyAttack2")
+	{
+		//adjust weapon collision for extended staff
+		RightWeaponCollision->SetRelativeScale3D(FVector(20.0f, 2.0f, 1.0f));
+		RightWeaponCollision->SetRelativeRotation(FRotator(0.0f, -45.0f, 0.0f));
+		RightWeaponCollision->SetRelativeLocation(FVector(-300.0f, 0.0f, 0.0f)); 
+
+		RightWeaponCollision->UpdateOverlaps();
+		/*GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Green, TEXT("Extended weapon scale applied"));*/
+	}
 	return HeavySectionName;
 }
 
@@ -309,12 +321,23 @@ void AMyWukongCharacter::ActivateRightWeapon()
 {
 	//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("Activate Weapon"));
 	RightWeaponCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	
+	//Debug for weapon collision
+	/*FVector BoxExtent = RightWeaponCollision->GetScaledBoxExtent();
+	FVector Location = RightWeaponCollision->GetComponentLocation();
+	FQuat Rotation = RightWeaponCollision->GetComponentQuat();
+
+	DrawDebugBox(GetWorld(),Location,BoxExtent,Rotation,FColor::Red,false, 2.1f );*/
 }
 
 void AMyWukongCharacter::DeactivateRightWeapon()
 {
 	//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("Deactivate Weapon"));
+	RightWeaponCollision->SetRelativeLocation(FVector(0.0f, 0.0f, 0.0f));
+	RightWeaponCollision->SetRelativeScale3D(FVector(1.25f, 1.0f, 4.0f));
+	RightWeaponCollision->SetRelativeRotation(FRotator(0.0f, 15.0f, 0.0f));
 	RightWeaponCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	RightWeaponCollision->UpdateOverlaps();
 	bIsAttacking = false;
 	bIsHeavyAttacking = false;
 	FTimerHandle MovementTimerHandle;
