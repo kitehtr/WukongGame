@@ -283,6 +283,12 @@ void AMyWukongCharacter::ResetCombo()
 	ComboCounter = 0;
 }
 
+void AMyWukongCharacter::ResetHeavyCombo()
+{
+	HeavyAttackComboCounter = 0;
+}
+
+
 
 // Called to bind functionality to input
 void AMyWukongCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -340,8 +346,12 @@ void AMyWukongCharacter::DeactivateRightWeapon()
 	RightWeaponCollision->UpdateOverlaps();
 	bIsAttacking = false;
 	bIsHeavyAttacking = false;
-	FTimerHandle MovementTimerHandle;
-	GetWorld()->GetTimerManager().SetTimer(MovementTimerHandle,this,&AMyWukongCharacter::EnableMovement, DelayTimeForAttack, false);
+	FTimerHandle MovementTimer;
+	GetWorld()->GetTimerManager().SetTimer(MovementTimer,this,&AMyWukongCharacter::EnableMovement, DelayTimeForAttack, false);
+	FTimerHandle LightComboResetTimer;
+	FTimerHandle HeavyComboResetTimer;
+	GetWorld()->GetTimerManager().SetTimer(LightComboResetTimer, this, &AMyWukongCharacter::ResetCombo, 2.0f, false);
+	GetWorld()->GetTimerManager().SetTimer(HeavyComboResetTimer, this, &AMyWukongCharacter::ResetHeavyCombo, 2.0f, false);
 	/*GetCharacterMovement()->SetMovementMode(MOVE_Walking);*/
 }
 

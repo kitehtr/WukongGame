@@ -134,6 +134,8 @@ private:
 
 	void ResetCombo();
 
+	void ResetHeavyCombo();
+
 	TSet<AActor*> AlreadyHitActors;
 
 	
