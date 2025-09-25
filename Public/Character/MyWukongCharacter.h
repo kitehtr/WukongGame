@@ -132,13 +132,15 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))
 	float HeavyAttackDamage;
 
-	void ResetCombo();
+	//resetting combos
+	FTimerHandle LightComboResetTimer;
+	FTimerHandle HeavyComboResetTimer;
 
+	void ResetCombo();
 	void ResetHeavyCombo();
 
 	TSet<AActor*> AlreadyHitActors;
 
-	
 	EAttackType CurrentAttackType;
 
 };

@@ -139,6 +139,9 @@ void AMyWukongCharacter::MainAttack()
 		return;
 	}
 
+	
+	GetWorld()->GetTimerManager().ClearTimer(LightComboResetTimer);
+
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 	if (AnimInstance && MainAttackMontage)
 	{
@@ -156,6 +159,8 @@ void AMyWukongCharacter::MainAttack()
 
 		AnimInstance->Montage_Play(MainAttackMontage);
 		AnimInstance->Montage_JumpToSection(SectionName, MainAttackMontage);
+		
+		GetWorld()->GetTimerManager().SetTimer(LightComboResetTimer, this, &AMyWukongCharacter::ResetCombo, 4.0f, false);
 	}
 }
 
@@ -165,6 +170,9 @@ void AMyWukongCharacter::HeavyAttack()
 	{
 		return;
 	}
+	
+	GetWorld()->GetTimerManager().ClearTimer(HeavyComboResetTimer);
+
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 	if (AnimInstance && HeavyAttackMontage)
 	{
@@ -179,6 +187,8 @@ void AMyWukongCharacter::HeavyAttack()
 
 		AnimInstance->Montage_Play(HeavyAttackMontage);
 		AnimInstance->Montage_JumpToSection(HeavySectionName, HeavyAttackMontage);
+		
+		GetWorld()->GetTimerManager().SetTimer(HeavyComboResetTimer, this, &AMyWukongCharacter::ResetHeavyCombo, 2.0f, false);
 	}
 }
 
@@ -348,10 +358,6 @@ void AMyWukongCharacter::DeactivateRightWeapon()
 	bIsHeavyAttacking = false;
 	FTimerHandle MovementTimer;
 	GetWorld()->GetTimerManager().SetTimer(MovementTimer,this,&AMyWukongCharacter::EnableMovement, DelayTimeForAttack, false);
-	FTimerHandle LightComboResetTimer;
-	FTimerHandle HeavyComboResetTimer;
-	GetWorld()->GetTimerManager().SetTimer(LightComboResetTimer, this, &AMyWukongCharacter::ResetCombo, 2.0f, false);
-	GetWorld()->GetTimerManager().SetTimer(HeavyComboResetTimer, this, &AMyWukongCharacter::ResetHeavyCombo, 2.0f, false);
 	/*GetCharacterMovement()->SetMovementMode(MOVE_Walking);*/
 }
 
