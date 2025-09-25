@@ -44,6 +44,14 @@ AMyWukongCharacter::AMyWukongCharacter() :
 	RightWeaponCollision->SetupAttachment(GetMesh(), FName("RightWeaponBone"));
 }
 
+void AMyWukongCharacter::HandleOnMontageNotifyBegin(FName NotifyName, const FBranchingPointNotifyPayload& a_pBranchingPayload)
+{
+	if (NotifyName.ToString() == "Dodge")
+	{
+		bIsDodging = false;
+	}
+}
+
 // Called when the game starts or when spawned
 void AMyWukongCharacter::BeginPlay()
 {
@@ -55,11 +63,17 @@ void AMyWukongCharacter::BeginPlay()
 	RightWeaponCollision->SetCollisionObjectType(ECollisionChannel::ECC_WorldDynamic);
 	RightWeaponCollision->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
 	RightWeaponCollision->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Overlap);
+
+	UAnimInstance* pAnimInst = GetMesh()->GetAnimInstance();
+	if (pAnimInst != nullptr)
+	{
+		pAnimInst->OnPlayMontageNotifyBegin.AddDynamic(this, &AMyWukongCharacter::HandleOnMontageNotifyBegin);
+	}
 }
 
 void AMyWukongCharacter::MoveForward(float Value)
 {
-	if ((Controller != nullptr) && (Value != 0.0f))
+	if ((Controller != nullptr) && (Value != 0.0f) && !bIsAttacking)
 	{
 		const FRotator Rotation{ Controller->GetControlRotation() };
 		const FRotator YawRotation{ 0, Rotation.Yaw, 0 };
@@ -70,7 +84,7 @@ void AMyWukongCharacter::MoveForward(float Value)
 
 void AMyWukongCharacter::MoveRight(float Value)
 {
-	if ((Controller != nullptr) && (Value != 0.0f))
+	if ((Controller != nullptr) && (Value != 0.0f) && !bIsAttacking)
 	{
 		const FRotator Rotation{ Controller->GetControlRotation() };
 		const FRotator YawRotation{ 0, Rotation.Yaw, 0 };
@@ -102,10 +116,37 @@ void AMyWukongCharacter::StopRunning()
 	GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
 }
 
-void AMyWukongCharacter::Recall()
+void AMyWukongCharacter::Dodge()
 {
-	PlayAnimMontage(RecallMontage, FName("Recall"));
+	if (!bIsAttacking && !bIsDodging && CanJump())
+	{
+		UAnimInstance* pAnimInst = GetMesh()->GetAnimInstance();
+			if (pAnimInst != nullptr)
+			{
+				bIsDodging = true;
+
+				pAnimInst->Montage_Play(DodgeMontage);
+
+				FVector DodgeDirection = GetLastMovementInputVector();
+				if (DodgeDirection.IsNearlyZero())
+				{
+					DodgeDirection = GetActorForwardVector();
+				}
+				else
+				{
+					DodgeDirection.Normalize();
+				}
+					LaunchCharacter(DodgeDirection * 3000, true, true);
+			}
+	}
+	
 }
+
+
+//void AMyWukongCharacter::Recall()
+//{
+//	PlayAnimMontage(RecallMontage, FName("Recall"));
+//}
 
 void AMyWukongCharacter::PlayAnimMontage(UAnimMontage* MontageToPlay, FName SectionName)
 {
@@ -139,7 +180,6 @@ void AMyWukongCharacter::MainAttack()
 		return;
 	}
 
-	
 	GetWorld()->GetTimerManager().ClearTimer(LightComboResetTimer);
 
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
@@ -317,6 +357,9 @@ void AMyWukongCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 	PlayerInputComponent->BindAxis("Turn", this, &APawn::AddControllerYawInput);
 	PlayerInputComponent->BindAxis("LookUp", this, &APawn::AddControllerPitchInput);
 
+	//Dodging
+	PlayerInputComponent->BindAction("Dodge", IE_Pressed, this, &AMyWukongCharacter::Dodge);
+
 	//Jumping
 	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ACharacter::Jump);
 	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
@@ -326,10 +369,9 @@ void AMyWukongCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 	PlayerInputComponent->BindAction("Run", IE_Released, this, &AMyWukongCharacter::StopRunning);
 
 	//Combat
-	PlayerInputComponent->BindAction("Recall", IE_Pressed, this, &AMyWukongCharacter::Recall);
+	/*PlayerInputComponent->BindAction("Recall", IE_Pressed, this, &AMyWukongCharacter::Recall);*/
 
 	PlayerInputComponent->BindAction("MainAttack", IE_Pressed, this, &AMyWukongCharacter::MainAttack);
-
 	PlayerInputComponent->BindAction("HeavyAttack", IE_Pressed, this, &AMyWukongCharacter::HeavyAttack);
 }
 

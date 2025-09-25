@@ -42,6 +42,7 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
+	//Movement and Camera
 	void MoveForward(float Value);
 	void MoveRight(float Value);
 
@@ -51,20 +52,19 @@ protected:
 	void Running();
 	void StopRunning();
 
-	void Recall();
+	/*void Recall();*/
+
+	//Montages & animations handling
+	UFUNCTION()
+	void HandleOnMontageNotifyBegin(FName NotifyName, const FBranchingPointNotifyPayload& a_pBranchingPayload);
 
 	void PlayAnimMontage(UAnimMontage* MontageToPlay, FName SectionName = "Default");
-
 	void EnableWalk();
-
 	FName GetAttackSectionName(int32 SectionCount);
-
 	FName GetHeavyAttackSectionName(int32 HeavySectionCount);
 
 	void MainAttack();
-
 	void HeavyAttack();
-
 	void EnableMovement();
 
 	UFUNCTION()
@@ -72,6 +72,7 @@ protected:
 
 	UFUNCTION(BlueprintImplementableEvent)
 	void DeathOfPlayer();
+
 
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta=(AllowPrivateAccess="true"))
@@ -95,7 +96,6 @@ private:
 	float DelayTimeForAttack = 0.2f;
 
 	int32 ComboCounter;
-	
 	int32 HeavyAttackComboCounter;
 
 	FTimerHandle TimerMovementWalking;
@@ -111,9 +111,16 @@ private:
 	UAnimMontage* HeavyAttackMontage;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Montage", meta = (AllowPrivateAccess = "true"))
-	UBoxComponent* RightWeaponCollision;
+	UAnimMontage* DodgeMontage;
+
+	void Dodge();
+	bool bIsDodging = false;
+
 
 	//Damage Calculations and Attacking
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))
+	UBoxComponent* RightWeaponCollision;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))
 	float BaseDamage;
 
