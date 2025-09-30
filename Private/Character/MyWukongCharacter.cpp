@@ -36,8 +36,9 @@ AMyWukongCharacter::AMyWukongCharacter() :
 	GetCharacterMovement()->bOrientRotationToMovement = true;
 	GetCharacterMovement()->RotationRate = FRotator(0.0f, 540.0f, 0.0f);
 
-	GetCharacterMovement()->JumpZVelocity = 600.0f;
-	GetCharacterMovement()->AirControl = 0.3f;
+	GetCharacterMovement()->JumpZVelocity = 1000.0f;
+	GetCharacterMovement()->GravityScale = 1.25f;
+	GetCharacterMovement()->AirControl = 0.25f;
 	JumpMaxCount = 2;
 
 	RightWeaponCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("Right Weapon Box"));
@@ -69,6 +70,31 @@ void AMyWukongCharacter::BeginPlay()
 	{
 		pAnimInst->OnPlayMontageNotifyBegin.AddDynamic(this, &AMyWukongCharacter::HandleOnMontageNotifyBegin);
 	}
+}
+
+void AMyWukongCharacter::OnJumped_Implementation()
+{
+	Super::OnJumped_Implementation();
+
+	if (JumpCurrentCount == 1)
+	{
+		LaunchCharacter(FVector(0, 0, 1000.0f), false, true);
+	}
+	else if (JumpCurrentCount == 2)
+	{
+		LaunchCharacter(FVector(0, 0, 1000.0f), false, true);
+		if (DoubleJumpMontage)
+		{
+			PlayAnimMontage(DoubleJumpMontage);
+		}
+	}
+}
+
+void AMyWukongCharacter::Landed(const FHitResult& Hit)
+{
+	Super::Landed(Hit);
+	GetCharacterMovement()->GravityScale = 1.25f;
+	CanDodge = true;
 }
 
 void AMyWukongCharacter::MoveForward(float Value)
@@ -118,7 +144,7 @@ void AMyWukongCharacter::StopRunning()
 
 void AMyWukongCharacter::Dodge()
 {
-	if (!bIsAttacking && !bIsDodging && CanJump())
+	if (!bIsAttacking && !bIsDodging && CanDodge)
 	{
 		UAnimInstance* pAnimInst = GetMesh()->GetAnimInstance();
 			if (pAnimInst != nullptr)

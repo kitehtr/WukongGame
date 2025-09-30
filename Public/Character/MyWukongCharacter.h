@@ -43,6 +43,8 @@ protected:
 	virtual void BeginPlay() override;
 
 	//Movement and Camera
+	virtual void OnJumped_Implementation() override;
+	virtual void Landed(const FHitResult& Hit) override;
 	void MoveForward(float Value);
 	void MoveRight(float Value);
 
@@ -111,10 +113,14 @@ private:
 	UAnimMontage* HeavyAttackMontage;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Montage", meta = (AllowPrivateAccess = "true"))
+	UAnimMontage* DoubleJumpMontage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Montage", meta = (AllowPrivateAccess = "true"))
 	UAnimMontage* DodgeMontage;
 
 	void Dodge();
 	bool bIsDodging = false;
+	bool CanDodge = true;
 
 
 	//Damage Calculations and Attacking
@@ -142,6 +148,7 @@ private:
 	//resetting combos
 	FTimerHandle LightComboResetTimer;
 	FTimerHandle HeavyComboResetTimer;
+
 
 	void ResetCombo();
 	void ResetHeavyCombo();
