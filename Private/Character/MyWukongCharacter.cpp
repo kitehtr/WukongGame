@@ -82,11 +82,13 @@ void AMyWukongCharacter::OnJumped_Implementation()
 	}
 	else if (JumpCurrentCount == 2)
 	{
+		
+		//if (DoubleJumpMontage)
+		//{
+		//	PlayAnimMontage(DoubleJumpMontage);
+		//}
+		bIsDoubleJumping = true;
 		LaunchCharacter(FVector(0, 0, 1000.0f), false, true);
-		if (DoubleJumpMontage)
-		{
-			PlayAnimMontage(DoubleJumpMontage);
-		}
 	}
 }
 
@@ -95,6 +97,7 @@ void AMyWukongCharacter::Landed(const FHitResult& Hit)
 	Super::Landed(Hit);
 	GetCharacterMovement()->GravityScale = 1.25f;
 	CanDodge = true;
+	bIsDoubleJumping = false;
 }
 
 void AMyWukongCharacter::MoveForward(float Value)

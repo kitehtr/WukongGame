@@ -20,6 +20,8 @@ void UWukongAnimInstance::UpdateAnimationProperties(float DeltaTime)
 
 		bIsInAir = WukongCharacter->GetCharacterMovement()->IsFalling();
 
+		bIsDoubleJumping = WukongCharacter->bIsDoubleJumping;
+
 		FRotator const AimRotation = WukongCharacter->GetBaseAimRotation();
 		FRotator const MovementRotation = UKismetMathLibrary::MakeRotFromX(WukongCharacter->GetVelocity());
 
