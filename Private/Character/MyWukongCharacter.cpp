@@ -169,7 +169,20 @@ void AMyWukongCharacter::Dodge()
 				}
 				DodgeDirection.Normalize();
 
-				LaunchCharacter(DodgeDirection * 3000, true, true);
+				if (GetCharacterMovement()->IsMovingOnGround())
+				{
+					GetCharacterMovement()->Velocity = FVector::ZeroVector; 
+					GetCharacterMovement()->GroundFriction = 0.0f; 
+					LaunchCharacter(DodgeDirection * 2000.0f, false, true); 
+					FTimerHandle FrictionTimer;
+					GetWorld()->GetTimerManager().SetTimer(FrictionTimer, [this]() {
+						GetCharacterMovement()->GroundFriction = 8.0f; 
+						}, 0.3f, false);
+				}
+				else
+				{
+					LaunchCharacter(DodgeDirection * 3000.0f, true, true);
+				}
 			}
 			else
 			{
@@ -228,7 +241,6 @@ void AMyWukongCharacter::MainAttack()
 	}
 	if (bIsAttacking)
 	{
-		bIsAttacking = false;
 		return;
 	}
 
