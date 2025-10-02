@@ -477,6 +477,10 @@ void AMyWukongCharacter::DeactivateRightWeapon()
 
 float AMyWukongCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
 {
+	if (bIsDodging)
+	{
+		return 0.0f;
+	}
 	if (Health - DamageAmount <= 0.0f)
 	{
 		Health = 0.0f;
@@ -487,6 +491,7 @@ float AMyWukongCharacter::TakeDamage(float DamageAmount, FDamageEvent const& Dam
 		GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
 		DeathOfPlayer();
+		return 0.0f;
 	}
 	else
 	{
