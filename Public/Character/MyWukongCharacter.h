@@ -64,12 +64,14 @@ protected:
 	void HandleOnMontageNotifyBegin(FName NotifyName, const FBranchingPointNotifyPayload& a_pBranchingPayload);
 
 	void PlayAnimMontage(UAnimMontage* MontageToPlay, FName SectionName = "Default");
+	void OnDodgeEnded(UAnimMontage* Montage, bool bInterrupted);
 	void EnableWalk();
 	FName GetAttackSectionName(int32 SectionCount);
 	FName GetHeavyAttackSectionName(int32 HeavySectionCount);
 
 	void MainAttack();
 	void HeavyAttack();
+	void OnAttackEnded(UAnimMontage* Montage, bool bInterrupted);
 	void EnableMovement();
 
 	UFUNCTION()

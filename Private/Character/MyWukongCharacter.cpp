@@ -12,8 +12,8 @@
 AMyWukongCharacter::AMyWukongCharacter() :
 	DefaultTurnRate(45.0f),
 	DefaultLookUpRate(45.0f),
-	WalkSpeed(600.0f),
-	RunSpeed(1200.0f),
+	WalkSpeed(750.0f),
+	RunSpeed(1500.0f),
 	BaseDamage(10.0f),
 	Health(100.0f),
 	MaxHealth(100.0f)
@@ -87,6 +87,7 @@ void AMyWukongCharacter::OnJumped_Implementation()
 		//{
 		//	PlayAnimMontage(DoubleJumpMontage);
 		//}
+		CanDodge = true;
 		bIsDoubleJumping = true;
 		LaunchCharacter(FVector(0, 0, 1000.0f), false, true);
 	}
@@ -147,30 +148,47 @@ void AMyWukongCharacter::StopRunning()
 
 void AMyWukongCharacter::Dodge()
 {
-	if (!bIsAttacking && !bIsDodging && CanDodge)
+	if (!bIsDodging && CanDodge)
 	{
 		UAnimInstance* pAnimInst = GetMesh()->GetAnimInstance();
-			if (pAnimInst != nullptr)
+		if (pAnimInst != nullptr && DodgeMontage)
+		{
+			bIsDodging = true;
+			CanDodge = false;
+
+			FOnMontageEnded MontageEndedDelegate;
+			MontageEndedDelegate.BindUObject(this, &AMyWukongCharacter::OnDodgeEnded);
+			pAnimInst->Montage_SetEndDelegate(MontageEndedDelegate, DodgeMontage);
+
+			if (pAnimInst->Montage_Play(DodgeMontage))
 			{
-				bIsDodging = true;
-
-				pAnimInst->Montage_Play(DodgeMontage);
-
 				FVector DodgeDirection = GetLastMovementInputVector();
 				if (DodgeDirection.IsNearlyZero())
 				{
 					DodgeDirection = GetActorForwardVector();
 				}
-				else
-				{
-					DodgeDirection.Normalize();
-				}
-					LaunchCharacter(DodgeDirection * 3000, true, true);
+				DodgeDirection.Normalize();
+
+				LaunchCharacter(DodgeDirection * 3000, true, true);
 			}
+			else
+			{
+				OnDodgeEnded(nullptr, true);
+			}
+		}
+		else
+		{
+			bIsDodging = false;
+			CanDodge = true;
+		}
 	}
-	
 }
 
+void AMyWukongCharacter::OnDodgeEnded(UAnimMontage* Montage, bool bInterrupted)
+{
+	bIsDodging = false;
+	CanDodge = true;
+}
 
 //void AMyWukongCharacter::Recall()
 //{
@@ -204,8 +222,13 @@ void AMyWukongCharacter::EnableWalk()
 
 void AMyWukongCharacter::MainAttack()
 {
+	if (bIsDodging)
+	{
+		return; 
+	}
 	if (bIsAttacking)
 	{
+		bIsAttacking = false;
 		return;
 	}
 
@@ -223,14 +246,23 @@ void AMyWukongCharacter::MainAttack()
 
 		GetCharacterMovement()->DisableMovement();
 
-		/*int32 const SectionIndex = MainAttackMontage->GetSectionIndex(SectionName);
-		float const SectionLength = MainAttackMontage->GetSectionLength(SectionIndex);*/
+		FOnMontageEnded AttackEndedDelegate;
+		AttackEndedDelegate.BindUObject(this, &AMyWukongCharacter::OnAttackEnded);
+		AnimInstance->Montage_SetEndDelegate(AttackEndedDelegate, MainAttackMontage);
 
 		AnimInstance->Montage_Play(MainAttackMontage);
 		AnimInstance->Montage_JumpToSection(SectionName, MainAttackMontage);
-		
+
 		GetWorld()->GetTimerManager().SetTimer(LightComboResetTimer, this, &AMyWukongCharacter::ResetCombo, 4.0f, false);
 	}
+	else
+	{
+		bIsAttacking = false;
+	}
+}
+void AMyWukongCharacter::OnAttackEnded(UAnimMontage* Montage, bool bInterrupted)
+{
+	bIsAttacking = false;
 }
 
 void AMyWukongCharacter::HeavyAttack()
