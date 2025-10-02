@@ -235,11 +235,7 @@ void AMyWukongCharacter::EnableWalk()
 
 void AMyWukongCharacter::MainAttack()
 {
-	if (bIsDodging)
-	{
-		return; 
-	}
-	if (bIsAttacking)
+	if (bIsDodging || bIsAttacking || !bCanAttack)
 	{
 		return;
 	}
@@ -251,6 +247,7 @@ void AMyWukongCharacter::MainAttack()
 	{
 		AlreadyHitActors.Empty();
 		bIsAttacking = true;
+		bCanAttack = false;
 		CurrentAttackType = EAttackType::BasicAttack;
 		int32 const SectionCount = MainAttackMontage->CompositeSections.Num();
 
@@ -266,6 +263,8 @@ void AMyWukongCharacter::MainAttack()
 		AnimInstance->Montage_JumpToSection(SectionName, MainAttackMontage);
 
 		GetWorld()->GetTimerManager().SetTimer(LightComboResetTimer, this, &AMyWukongCharacter::ResetCombo, 4.0f, false);
+
+		GetWorld()->GetTimerManager().SetTimer(AttackCooldownTimer, [this]() {bCanAttack = true;}, 0.5f, false);
 	}
 	else
 	{

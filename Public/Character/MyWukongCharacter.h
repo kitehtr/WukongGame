@@ -69,6 +69,9 @@ protected:
 	FName GetAttackSectionName(int32 SectionCount);
 	FName GetHeavyAttackSectionName(int32 HeavySectionCount);
 
+	bool bCanAttack = true;
+	FTimerHandle AttackCooldownTimer;
+
 	void MainAttack();
 	void HeavyAttack();
 	void OnAttackEnded(UAnimMontage* Montage, bool bInterrupted);
