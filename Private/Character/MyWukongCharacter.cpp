@@ -148,6 +148,18 @@ void AMyWukongCharacter::StopRunning()
 
 void AMyWukongCharacter::Dodge()
 {
+	if (bIsAttacking)
+	{
+		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+		if (AnimInstance && MainAttackMontage)
+		{
+			AnimInstance->Montage_Stop(0.1f, MainAttackMontage);
+			OnAttackEnded(MainAttackMontage, true); 
+			CanDodge = true;
+		}
+
+		GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+	}
 	if (!bIsDodging && CanDodge)
 	{
 		UAnimInstance* pAnimInst = GetMesh()->GetAnimInstance();
@@ -201,6 +213,10 @@ void AMyWukongCharacter::OnDodgeEnded(UAnimMontage* Montage, bool bInterrupted)
 {
 	bIsDodging = false;
 	CanDodge = true;
+	if (GetCharacterMovement()->MovementMode != MOVE_Walking)
+	{
+		GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+	}
 }
 
 //void AMyWukongCharacter::Recall()
@@ -253,7 +269,7 @@ void AMyWukongCharacter::MainAttack()
 
 		FName const SectionName = GetAttackSectionName(SectionCount);
 
-		GetCharacterMovement()->DisableMovement();
+		GetCharacterMovement()->StopMovementImmediately();
 
 		FOnMontageEnded AttackEndedDelegate;
 		AttackEndedDelegate.BindUObject(this, &AMyWukongCharacter::OnAttackEnded);
@@ -271,9 +287,14 @@ void AMyWukongCharacter::MainAttack()
 		bIsAttacking = false;
 	}
 }
+
 void AMyWukongCharacter::OnAttackEnded(UAnimMontage* Montage, bool bInterrupted)
 {
 	bIsAttacking = false;
+	if (GetCharacterMovement()->MovementMode != MOVE_Walking)
+	{
+		GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+	}
 }
 
 void AMyWukongCharacter::HeavyAttack()
