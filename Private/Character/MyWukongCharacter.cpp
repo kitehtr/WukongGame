@@ -1,8 +1,12 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-
 #include "../../Public/Character/MyWukongCharacter.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "Engine/EngineTypes.h"  
+#include "Engine/World.h"
+#include "Engine/OverlapResult.h"
+#include "DrawDebugHelpers.h" 
+#include "Components/ShapeComponent.h"
 #include "Camera/CameraComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "../../Public/Enemy/MeleeHitInterface.h"
@@ -105,6 +109,11 @@ void AMyWukongCharacter::Landed(const FHitResult& Hit)
 	bIsAttacking = false;
 	bIsHeavyAttacking = false;
 
+	if (bIsAirAttacking)
+	{
+		AOEDamage();
+		bIsAirAttacking = false;
+	}
 	APlayerController* PC = Cast<APlayerController>(GetController());
 	if (PC)
 	{
@@ -343,10 +352,8 @@ void AMyWukongCharacter::AirAttack()
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 	if (AnimInstance && AirAttackMontage)
 	{
-		bIsAttacking = true;
-		bIsHeavyAttacking = true;
+		bIsAirAttacking = true;
 		bCanAttack = false;
-		CurrentAttackType = EAttackType::HeavyAttack;
 
 		APlayerController* PC = Cast<APlayerController>(GetController());
 		if (PC)
@@ -362,8 +369,40 @@ void AMyWukongCharacter::AirAttack()
 		AnimInstance->Montage_Play(AirAttackMontage);
 
 		GetCharacterMovement()->Velocity = FVector::ZeroVector; 
-		LaunchCharacter(FVector(0, 0, -5000.0f), true, true);   
+		LaunchCharacter(FVector(0, 0, -5000.0f), true, true);
+		
 	}
+}
+
+void AMyWukongCharacter::AOEDamage()
+{
+	//aoe area
+	float Radius = 350.0f;
+	float HalfHeight = 30.0f;
+	TArray<FOverlapResult> Overlaps;
+	FCollisionShape CollisionShape = FCollisionShape::MakeCapsule(Radius, HalfHeight);
+
+	//make sure not to damage self
+	FCollisionQueryParams QueryParams;
+	QueryParams.AddIgnoredActor(this); 
+
+	bool bHit = GetWorld()->OverlapMultiByChannel(Overlaps,GetActorLocation(),FQuat::Identity,ECC_Pawn,CollisionShape,QueryParams);
+
+	if (bHit)
+	{
+		for (auto& Result : Overlaps)
+		{
+			AActor* OverlappedActor = Result.GetActor();
+			if (OverlappedActor)
+			{	
+				//checks for overlapped actors and applies the damage
+				UGameplayStatics::ApplyDamage(OverlappedActor, 100.0f, GetController(), this, nullptr);
+			}
+		}
+	}
+
+	//debug visual
+	/*DrawDebugSphere(GetWorld(), GetActorLocation(), Radius, 32, FColor::Red, false, 2.0f);*/
 }
 
 void AMyWukongCharacter::HeavyAttack()
@@ -434,6 +473,10 @@ FName AMyWukongCharacter::GetHeavyAttackSectionName(int32 HeavySectionCount)
 
 	RightWeaponCollision->SetRelativeScale3D(FVector(1.25f, 1.0f, 4.0f));
 
+	if (HeavySectionName == "HeavyAttack1")
+	{
+		AOEDamage();
+	}
 	if (HeavySectionName == "HeavyAttack2")
 	{
 		//adjust weapon collision for extended staff

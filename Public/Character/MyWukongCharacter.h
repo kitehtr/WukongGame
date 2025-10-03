@@ -18,7 +18,8 @@ enum class EAttackType : uint8
 {
 	None,
 	BasicAttack,
-	HeavyAttack
+	HeavyAttack,
+	AirAttack
 };
 
 UCLASS()
@@ -78,6 +79,7 @@ protected:
 	void MainAttack();
 	void AirAttack();
 	void HeavyAttack();
+	void AOEDamage();
 	void OnAttackEnded(UAnimMontage* Montage, bool bInterrupted);
 	void EnableMovement();
 
@@ -159,6 +161,9 @@ private:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))
 	bool bIsHeavyAttacking;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))
+	bool bIsAirAttacking;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))
 	float HeavyAttackDamage;
