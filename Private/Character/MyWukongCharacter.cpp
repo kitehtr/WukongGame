@@ -39,7 +39,7 @@ AMyWukongCharacter::AMyWukongCharacter() :
 	GetCharacterMovement()->JumpZVelocity = 1000.0f;
 	GetCharacterMovement()->GravityScale = 1.25f;
 	GetCharacterMovement()->AirControl = 0.25f;
-	JumpMaxCount = 2;
+	JumpMaxCount = 3;
 
 	RightWeaponCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("Right Weapon Box"));
 	RightWeaponCollision->SetupAttachment(GetMesh(), FName("RightWeaponBone"));
@@ -82,13 +82,14 @@ void AMyWukongCharacter::OnJumped_Implementation()
 	}
 	else if (JumpCurrentCount == 2)
 	{
-		
-		//if (DoubleJumpMontage)
-		//{
-		//	PlayAnimMontage(DoubleJumpMontage);
-		//}
 		CanDodge = true;
 		bIsDoubleJumping = true;
+		LaunchCharacter(FVector(0, 0, 1000.0f), false, true);
+	}
+	else if (JumpCurrentCount == 3)
+	{
+		CanDodge = true;
+		bIsTripleJumping = true;
 		LaunchCharacter(FVector(0, 0, 1000.0f), false, true);
 	}
 }
@@ -99,11 +100,15 @@ void AMyWukongCharacter::Landed(const FHitResult& Hit)
 	GetCharacterMovement()->GravityScale = 1.25f;
 	CanDodge = true;
 	bIsDoubleJumping = false;
+	bIsTripleJumping = false;
+	bCanAttack = true;
+	bIsAttacking = false;
+
 }
 
 void AMyWukongCharacter::MoveForward(float Value)
 {
-	if ((Controller != nullptr) && (Value != 0.0f) && !bIsAttacking)
+	if ((Controller != nullptr) && (Value != 0.0f) && !bIsAttacking && !bIsHeavyAttacking)
 	{
 		const FRotator Rotation{ Controller->GetControlRotation() };
 		const FRotator YawRotation{ 0, Rotation.Yaw, 0 };
@@ -114,7 +119,7 @@ void AMyWukongCharacter::MoveForward(float Value)
 
 void AMyWukongCharacter::MoveRight(float Value)
 {
-	if ((Controller != nullptr) && (Value != 0.0f) && !bIsAttacking)
+	if ((Controller != nullptr) && (Value != 0.0f) && !bIsAttacking && !bIsHeavyAttacking)
 	{
 		const FRotator Rotation{ Controller->GetControlRotation() };
 		const FRotator YawRotation{ 0, Rotation.Yaw, 0 };
@@ -148,13 +153,20 @@ void AMyWukongCharacter::StopRunning()
 
 void AMyWukongCharacter::Dodge()
 {
-	if (bIsAttacking)
+	if (bIsAttacking || bIsHeavyAttacking)
 	{
 		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 		if (AnimInstance && MainAttackMontage)
 		{
 			AnimInstance->Montage_Stop(0.1f, MainAttackMontage);
 			OnAttackEnded(MainAttackMontage, true); 
+			CanDodge = true;
+		}
+
+		if (AnimInstance && HeavyAttackMontage)
+		{
+			AnimInstance->Montage_Stop(0.1f, HeavyAttackMontage);
+			OnAttackEnded(HeavyAttackMontage, true);
 			CanDodge = true;
 		}
 
@@ -251,8 +263,14 @@ void AMyWukongCharacter::EnableWalk()
 
 void AMyWukongCharacter::MainAttack()
 {
-	if (bIsDodging || bIsAttacking || !bCanAttack)
+	if (bIsDodging || bIsAttacking || !bCanAttack || bIsHeavyAttacking)
 	{
+		return;
+	}
+
+	if (GetCharacterMovement()->IsFalling())
+	{
+		AirAttack();
 		return;
 	}
 
@@ -291,9 +309,30 @@ void AMyWukongCharacter::MainAttack()
 void AMyWukongCharacter::OnAttackEnded(UAnimMontage* Montage, bool bInterrupted)
 {
 	bIsAttacking = false;
+	bCanAttack = true;
 	if (GetCharacterMovement()->MovementMode != MOVE_Walking)
 	{
 		GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+	}
+}
+
+void AMyWukongCharacter::AirAttack()
+{
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+	if (AnimInstance && AirAttackMontage)
+	{
+		bIsAttacking = true;
+		bCanAttack = false;
+		CurrentAttackType = EAttackType::HeavyAttack;
+
+		FOnMontageEnded AttackEndedDelegate;
+		AttackEndedDelegate.BindUObject(this, &AMyWukongCharacter::OnAttackEnded);
+		AnimInstance->Montage_SetEndDelegate(AttackEndedDelegate, AirAttackMontage);
+
+		AnimInstance->Montage_Play(AirAttackMontage);
+
+		GetCharacterMovement()->Velocity = FVector::ZeroVector; 
+		LaunchCharacter(FVector(0, 0, -700.0f), true, true);   
 	}
 }
 
