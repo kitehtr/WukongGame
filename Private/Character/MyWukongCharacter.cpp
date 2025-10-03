@@ -103,11 +103,25 @@ void AMyWukongCharacter::Landed(const FHitResult& Hit)
 	bIsTripleJumping = false;
 	bCanAttack = true;
 	bIsAttacking = false;
+	bIsHeavyAttacking = false;
 
+	APlayerController* PC = Cast<APlayerController>(GetController());
+	if (PC)
+	{
+		float DelayTime = 1.0f;
+
+		FTimerHandle InputTimerHandle;
+		GetWorld()->GetTimerManager().SetTimer(InputTimerHandle, [PC]() {PC->SetIgnoreMoveInput(false);PC->SetIgnoreLookInput(false);}, DelayTime, false);
+	}
 }
 
 void AMyWukongCharacter::MoveForward(float Value)
 {
+	if (bIsAttacking || bIsHeavyAttacking)
+	{
+		return;
+	}
+
 	if ((Controller != nullptr) && (Value != 0.0f) && !bIsAttacking && !bIsHeavyAttacking)
 	{
 		const FRotator Rotation{ Controller->GetControlRotation() };
@@ -119,6 +133,11 @@ void AMyWukongCharacter::MoveForward(float Value)
 
 void AMyWukongCharacter::MoveRight(float Value)
 {
+	if (bIsAttacking || bIsHeavyAttacking)
+	{
+		return;
+	}		
+
 	if ((Controller != nullptr) && (Value != 0.0f) && !bIsAttacking && !bIsHeavyAttacking)
 	{
 		const FRotator Rotation{ Controller->GetControlRotation() };
@@ -287,7 +306,7 @@ void AMyWukongCharacter::MainAttack()
 
 		FName const SectionName = GetAttackSectionName(SectionCount);
 
-		GetCharacterMovement()->StopMovementImmediately();
+		GetCharacterMovement()->DisableMovement();
 
 		FOnMontageEnded AttackEndedDelegate;
 		AttackEndedDelegate.BindUObject(this, &AMyWukongCharacter::OnAttackEnded);
@@ -310,10 +329,13 @@ void AMyWukongCharacter::OnAttackEnded(UAnimMontage* Montage, bool bInterrupted)
 {
 	bIsAttacking = false;
 	bCanAttack = true;
+	bIsHeavyAttacking = false;
 	if (GetCharacterMovement()->MovementMode != MOVE_Walking)
 	{
 		GetCharacterMovement()->SetMovementMode(MOVE_Walking);
 	}
+
+	
 }
 
 void AMyWukongCharacter::AirAttack()
@@ -322,8 +344,16 @@ void AMyWukongCharacter::AirAttack()
 	if (AnimInstance && AirAttackMontage)
 	{
 		bIsAttacking = true;
+		bIsHeavyAttacking = true;
 		bCanAttack = false;
 		CurrentAttackType = EAttackType::HeavyAttack;
+
+		APlayerController* PC = Cast<APlayerController>(GetController());
+		if (PC)
+		{
+			PC->SetIgnoreMoveInput(true);
+			PC->SetIgnoreLookInput(true);
+		}
 
 		FOnMontageEnded AttackEndedDelegate;
 		AttackEndedDelegate.BindUObject(this, &AMyWukongCharacter::OnAttackEnded);
@@ -332,14 +362,20 @@ void AMyWukongCharacter::AirAttack()
 		AnimInstance->Montage_Play(AirAttackMontage);
 
 		GetCharacterMovement()->Velocity = FVector::ZeroVector; 
-		LaunchCharacter(FVector(0, 0, -700.0f), true, true);   
+		LaunchCharacter(FVector(0, 0, -5000.0f), true, true);   
 	}
 }
 
 void AMyWukongCharacter::HeavyAttack()
 {
-	if (bIsAttacking || bIsHeavyAttacking)
+	if (bIsDodging || bIsAttacking || !bCanAttack || bIsHeavyAttacking)
 	{
+		return;
+	}
+
+	if (GetCharacterMovement()->IsFalling())
+	{
+		AirAttack();
 		return;
 	}
 	
