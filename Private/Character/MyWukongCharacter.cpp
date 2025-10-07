@@ -293,7 +293,18 @@ void AMyWukongCharacter::MainAttack()
 {
 	if (bIsDodging || bIsAttacking || !bCanAttack || bIsHeavyAttacking)
 	{
+		if (!bAttackDelay) 
+		{
+			bAttackDelay = true;
+			GetWorld()->GetTimerManager().SetTimer(AttackInputBuffer, this, &AMyWukongCharacter::ClearAttackDelay, 0.2f, false);
+		}
 		return;
+	}
+
+	if (bAttackDelay)
+	{
+		bAttackDelay = false;
+		GetWorld()->GetTimerManager().ClearTimer(AttackInputBuffer);
 	}
 
 	if (GetCharacterMovement()->IsFalling())
@@ -331,20 +342,40 @@ void AMyWukongCharacter::MainAttack()
 	else
 	{
 		bIsAttacking = false;
+		bCanAttack = true; 
 	}
 }
 
 void AMyWukongCharacter::OnAttackEnded(UAnimMontage* Montage, bool bInterrupted)
 {
 	bIsAttacking = false;
-	bCanAttack = true;
 	bIsHeavyAttacking = false;
+
+	if (bAttackDelay)
+	{
+		GetWorld()->GetTimerManager().SetTimer(AttackInputBuffer, this, &AMyWukongCharacter::BufferAttackInput, 0.1f, false);
+	}
+
 	if (GetCharacterMovement()->MovementMode != MOVE_Walking)
 	{
 		GetCharacterMovement()->SetMovementMode(MOVE_Walking);
 	}
+}
 
-	
+void AMyWukongCharacter::BufferAttackInput()
+{
+	if (bAttackDelay && !bIsAttacking && bCanAttack && !bIsDodging && !bIsHeavyAttacking)
+	{
+		bAttackDelay = false;
+		GetWorld()->GetTimerManager().ClearTimer(AttackInputBuffer);
+		MainAttack();
+	}
+}
+
+void AMyWukongCharacter::ClearAttackDelay()
+{
+	bAttackDelay = false;
+	GetWorld()->GetTimerManager().ClearTimer(AttackInputBuffer);
 }
 
 void AMyWukongCharacter::AirAttack()

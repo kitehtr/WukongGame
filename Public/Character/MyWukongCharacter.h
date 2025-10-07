@@ -76,6 +76,9 @@ protected:
 	bool bCanAttack = true;
 	FTimerHandle AttackCooldownTimer;
 
+	void BufferAttackInput();
+	void ClearAttackDelay();
+
 	void MainAttack();
 	void AirAttack();
 	void HeavyAttack();
@@ -109,10 +112,13 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Movement", meta = (AllowPrivateAccess = "true"))
 	float RunSpeed;
 
-	float DelayTimeForAttack = 0.2f;
+	float DelayTimeForAttack = 0.7f;
 
 	int32 ComboCounter;
 	int32 HeavyAttackComboCounter;
+
+	bool bAttackDelay = false;
+	FTimerHandle AttackInputBuffer;
 
 	FTimerHandle TimerMovementWalking;
 
