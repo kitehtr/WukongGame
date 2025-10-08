@@ -10,6 +10,7 @@
 #include "Camera/CameraComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "../../Public/Enemy/MeleeHitInterface.h"
+#include "../../Public/Enemy/Enemy.h"
 #include "Kismet/GameplayStatics.h"
 
 // Sets default values
@@ -291,6 +292,8 @@ void AMyWukongCharacter::EnableWalk()
 
 void AMyWukongCharacter::MainAttack()
 {
+	FindAttackTarget();
+
 	if (bIsDodging || bIsAttacking || !bCanAttack || bIsHeavyAttacking)
 	{
 		if (!bAttackDelay) 
@@ -305,6 +308,12 @@ void AMyWukongCharacter::MainAttack()
 	{
 		bAttackDelay = false;
 		GetWorld()->GetTimerManager().ClearTimer(AttackInputBuffer);
+	}
+
+	if (CurrentTarget)
+	{
+		MoveToTargetToAttack();
+		return; 
 	}
 
 	if (GetCharacterMovement()->IsFalling())
@@ -372,10 +381,142 @@ void AMyWukongCharacter::BufferAttackInput()
 	}
 }
 
+void AMyWukongCharacter::MoveToTargetToAttack()
+{
+	if (!CurrentTarget) return;
+
+	FVector TargetLocation = CurrentTarget->GetActorLocation();
+	FVector Direction = (TargetLocation - GetActorLocation()).GetSafeNormal();
+	float DistanceToTarget = FVector::Dist(GetActorLocation(), TargetLocation);
+
+	FRotator TargetRotation = Direction.Rotation();
+	TargetRotation.Pitch = 0.0f;
+	TargetRotation.Roll = 0.0f;
+
+	SetActorRotation(TargetRotation);
+
+	if (DistanceToTarget < 100.0f)
+	{
+		ExecuteAttack();
+		return;
+	}
+
+	GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+
+	float LaunchSpeed = FMath::Lerp(1200.0f, 2500.0f, FMath::Clamp(DistanceToTarget / 950.0f, 0.0f, 1.0f));
+	GetCharacterMovement()->Velocity = Direction * LaunchSpeed;
+
+	GetCharacterMovement()->GroundFriction = 0.0f;
+	GetCharacterMovement()->BrakingDecelerationWalking = 10.0f;
+
+	float MoveTime = FMath::Clamp(DistanceToTarget / LaunchSpeed, 0.1f, 0.5f);
+	GetWorld()->GetTimerManager().SetTimer(MoveToTargetTimer, this, &AMyWukongCharacter::ExecuteAttack, MoveTime, false);
+}
+
+void AMyWukongCharacter::ExecuteAttack()
+{
+	bIsMovingToTarget = false;
+	GetWorld()->GetTimerManager().ClearTimer(MoveToTargetTimer);
+
+	GetCharacterMovement()->GroundFriction = 8.0f; 
+	GetCharacterMovement()->BrakingDecelerationWalking = 2048.0f; 
+
+
+	if (GetCharacterMovement()->MovementMode == MOVE_Flying)
+	{
+		GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+	}
+
+	if (GetCharacterMovement()->IsFalling())
+	{
+		AirAttack();
+		return;
+	}
+
+	GetWorld()->GetTimerManager().ClearTimer(LightComboResetTimer);
+
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+	if (AnimInstance && MainAttackMontage)
+	{
+		AlreadyHitActors.Empty();
+		bIsAttacking = true;
+		bCanAttack = false;
+		CurrentAttackType = EAttackType::BasicAttack;
+		int32 const SectionCount = MainAttackMontage->CompositeSections.Num();
+
+		FName const SectionName = GetAttackSectionName(SectionCount);
+
+		GetCharacterMovement()->DisableMovement();
+
+		FOnMontageEnded AttackEndedDelegate;
+		AttackEndedDelegate.BindUObject(this, &AMyWukongCharacter::OnAttackEnded);
+		AnimInstance->Montage_SetEndDelegate(AttackEndedDelegate, MainAttackMontage);
+
+		AnimInstance->Montage_Play(MainAttackMontage);
+		AnimInstance->Montage_JumpToSection(SectionName, MainAttackMontage);
+
+		GetWorld()->GetTimerManager().SetTimer(LightComboResetTimer, this, &AMyWukongCharacter::ResetCombo, 4.0f, false);
+		GetWorld()->GetTimerManager().SetTimer(AttackCooldownTimer, [this]() {bCanAttack = true; }, 0.5f, false);
+	}
+	else
+	{
+		bIsAttacking = false;
+		bCanAttack = true;
+	}
+}
+
 void AMyWukongCharacter::ClearAttackDelay()
 {
 	bAttackDelay = false;
 	GetWorld()->GetTimerManager().ClearTimer(AttackInputBuffer);
+}
+
+void AMyWukongCharacter::FindAttackTarget()
+{
+	UpdateNearbyEnemies();
+	FVector InputDirection = GetLastMovementInputVector();
+	if (InputDirection.IsNearlyZero())
+	{
+		InputDirection = GetActorForwardVector();
+	}
+
+	AActor* BestTarget = nullptr;
+	float BestScore = 0.0f;
+
+	for (AActor* Enemy : NearbyEnemies)
+	{
+		FVector ToEnemy = (Enemy->GetActorLocation() - GetActorLocation()).GetSafeNormal();
+		float DotProduct = FVector::DotProduct(InputDirection, ToEnemy);
+		float Distance = FVector::Dist(GetActorLocation(), Enemy->GetActorLocation());
+
+		float Score = (DotProduct + 1.0f) * 0.5f; 
+		Score *= (1.0f - FMath::Clamp(Distance / MaxAttackRange, 0.0f, 1.0f));
+
+		if (Score > BestScore && Distance < MaxAttackRange)
+		{
+			BestScore = Score;
+			BestTarget = Enemy;
+		}
+	}
+
+	CurrentTarget = BestTarget;
+}
+
+void AMyWukongCharacter::UpdateNearbyEnemies()
+{
+	NearbyEnemies.Empty();
+
+	TArray<AActor*> FoundActors;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AEnemy::StaticClass(), FoundActors); 
+
+	for (AActor* Actor : FoundActors)
+	{
+		float Distance = FVector::Dist(GetActorLocation(), Actor->GetActorLocation());
+		if (Distance < MaxAttackRange * 2.0f) 
+		{
+			NearbyEnemies.Add(Actor);
+		}
+	}
 }
 
 void AMyWukongCharacter::AirAttack()

@@ -80,6 +80,13 @@ protected:
 	void ClearAttackDelay();
 
 	void MainAttack();
+
+	void FindAttackTarget();
+	void UpdateNearbyEnemies();
+
+	void MoveToTargetToAttack();
+	void ExecuteAttack();
+
 	void AirAttack();
 	void HeavyAttack();
 	void AOEDamage();
@@ -119,6 +126,13 @@ private:
 
 	bool bAttackDelay = false;
 	FTimerHandle AttackInputBuffer;
+
+	AActor* CurrentTarget = nullptr;
+	float MaxAttackRange = 2000.0f; 
+	TArray<AActor*> NearbyEnemies; 
+
+	bool bIsMovingToTarget = false;
+	FTimerHandle MoveToTargetTimer;
 
 	FTimerHandle TimerMovementWalking;
 
