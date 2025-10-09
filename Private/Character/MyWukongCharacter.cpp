@@ -50,6 +50,37 @@ AMyWukongCharacter::AMyWukongCharacter() :
 	RightWeaponCollision->SetupAttachment(GetMesh(), FName("RightWeaponBone"));
 }
 
+void AMyWukongCharacter::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+
+	if (bRotatingToTarget)
+	{
+		FRotator CurrentRotation = GetActorRotation();
+		FRotator NewRotation = FMath::RInterpTo(CurrentRotation, TargetSmoothRotation, DeltaTime, RotationSpeedToTarget);
+
+		NewRotation.Pitch = CurrentRotation.Pitch;
+		NewRotation.Roll = CurrentRotation.Roll;
+		SetActorRotation(NewRotation);
+
+		if (Controller)
+		{
+			FRotator ControllerRot = Controller->GetControlRotation();
+			ControllerRot.Yaw = NewRotation.Yaw;
+			Controller->SetControlRotation(ControllerRot);
+		}
+
+		float AngleDifference = FMath::Abs(CurrentRotation.Yaw - TargetSmoothRotation.Yaw);
+		if (AngleDifference < 1.0f) 
+		{
+			bRotatingToTarget = false;
+			SetActorRotation(TargetSmoothRotation);
+		}
+
+
+	}
+}
+
 void AMyWukongCharacter::HandleOnMontageNotifyBegin(FName NotifyName, const FBranchingPointNotifyPayload& a_pBranchingPayload)
 {
 	if (NotifyName.ToString() == "Dodge")
@@ -393,7 +424,8 @@ void AMyWukongCharacter::MoveToTargetToAttack()
 	TargetRotation.Pitch = 0.0f;
 	TargetRotation.Roll = 0.0f;
 
-	SetActorRotation(TargetRotation);
+	TargetSmoothRotation = TargetRotation;
+	bRotatingToTarget = true;
 
 	if (DistanceToTarget < 100.0f)
 	{
@@ -402,21 +434,34 @@ void AMyWukongCharacter::MoveToTargetToAttack()
 	}
 
 	GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+	float LaunchSpeed = FMath::GetMappedRangeValueClamped(FVector2D(100.0f, 2000.0f), FVector2D(1200.0f, 3500.0f), DistanceToTarget);
 
-	float LaunchSpeed = FMath::Lerp(1200.0f, 2500.0f, FMath::Clamp(DistanceToTarget / 950.0f, 0.0f, 1.0f));
 	GetCharacterMovement()->Velocity = Direction * LaunchSpeed;
-
 	GetCharacterMovement()->GroundFriction = 0.0f;
 	GetCharacterMovement()->BrakingDecelerationWalking = 10.0f;
 
-	float MoveTime = FMath::Clamp(DistanceToTarget / LaunchSpeed, 0.1f, 0.5f);
-	GetWorld()->GetTimerManager().SetTimer(MoveToTargetTimer, this, &AMyWukongCharacter::ExecuteAttack, MoveTime, false);
+	float MoveTime = DistanceToTarget / LaunchSpeed;
+	MoveTime = FMath::Clamp(MoveTime, 0.1f, 0.8f);
+
+	GetWorld()->GetTimerManager().SetTimer(MoveToTargetTimer,this,&AMyWukongCharacter::ExecuteAttack,MoveTime,false);
 }
+
 
 void AMyWukongCharacter::ExecuteAttack()
 {
 	bIsMovingToTarget = false;
 	GetWorld()->GetTimerManager().ClearTimer(MoveToTargetTimer);
+
+	if (CurrentTarget)
+	{
+		FVector Direction = (CurrentTarget->GetActorLocation() - GetActorLocation()).GetSafeNormal();
+		FRotator TargetRotation = Direction.Rotation();
+		TargetRotation.Pitch = 0.0f;
+		TargetRotation.Roll = 0.0f;
+
+		TargetSmoothRotation = TargetRotation;
+		bRotatingToTarget = true;
+	}
 
 	GetCharacterMovement()->GroundFriction = 8.0f; 
 	GetCharacterMovement()->BrakingDecelerationWalking = 2048.0f; 

@@ -33,6 +33,7 @@ public:
 
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+	virtual void Tick(float DeltaTime) override;
 
 	virtual void ActivateRightWeapon();
 	virtual void DeactivateRightWeapon();
@@ -133,6 +134,13 @@ private:
 
 	bool bIsMovingToTarget = false;
 	FTimerHandle MoveToTargetTimer;
+
+	bool bRotatingToTarget = false;
+	FRotator TargetSmoothRotation;
+	float RotationSpeedToTarget = 5.0f;
+
+	FTimerHandle RotationCompleteTimer;
+	FTimerHandle RotationCheckTimer;
 
 	FTimerHandle TimerMovementWalking;
 
