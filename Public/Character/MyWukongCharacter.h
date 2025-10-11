@@ -51,7 +51,7 @@ protected:
 	virtual void BeginPlay() override;
 
 	//Movement and Camera
-	virtual void OnJumped_Implementation() override;
+	void CustomJump();
 	virtual void Landed(const FHitResult& Hit) override;
 	void MoveForward(float Value);
 	void MoveRight(float Value);
@@ -169,6 +169,9 @@ private:
 	void Dodge();
 	bool bIsDodging = false;
 	bool CanDodge = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Jump", meta = (AllowPrivateAccess = "true"))
+	int CurrentJumpCounter = 0;
 
 
 	//Damage Calculations and Attacking

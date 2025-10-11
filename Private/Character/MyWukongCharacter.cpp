@@ -108,25 +108,31 @@ void AMyWukongCharacter::BeginPlay()
 	}
 }
 
-void AMyWukongCharacter::OnJumped_Implementation()
+void AMyWukongCharacter::CustomJump()
 {
-	Super::OnJumped_Implementation();
 
-	if (JumpCurrentCount == 1)
+	if (CurrentJumpCounter >= 3)
 	{
-		LaunchCharacter(FVector(0, 0, 1000.0f), false, true);
+		return;
 	}
-	else if (JumpCurrentCount == 2)
+
+	LaunchCharacter(FVector(0, 0, 1000.0f), false, true);
+
+	if (CurrentJumpCounter == 0)
+	{
+		CurrentJumpCounter++;
+	}
+	else if (CurrentJumpCounter == 1)
 	{
 		CanDodge = true;
 		bIsDoubleJumping = true;
-		LaunchCharacter(FVector(0, 0, 1000.0f), false, true);
+		CurrentJumpCounter++;
 	}
-	else if (JumpCurrentCount == 3)
+	else if (CurrentJumpCounter == 2)
 	{
 		CanDodge = true;
 		bIsTripleJumping = true;
-		LaunchCharacter(FVector(0, 0, 1000.0f), false, true);
+		CurrentJumpCounter++;
 	}
 }
 
@@ -134,6 +140,7 @@ void AMyWukongCharacter::Landed(const FHitResult& Hit)
 {
 	Super::Landed(Hit);
 	GetCharacterMovement()->GravityScale = 1.25f;
+	CurrentJumpCounter = 0;
 	CanDodge = true;
 	bIsDoubleJumping = false;
 	bIsTripleJumping = false;
@@ -789,8 +796,7 @@ void AMyWukongCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 	PlayerInputComponent->BindAction("Dodge", IE_Pressed, this, &AMyWukongCharacter::Dodge);
 
 	//Jumping
-	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ACharacter::Jump);
-	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
+	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &AMyWukongCharacter::CustomJump);
 
 	//Running
 	PlayerInputComponent->BindAction("Run", IE_Pressed, this, &AMyWukongCharacter::Running);
