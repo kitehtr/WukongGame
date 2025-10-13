@@ -16,7 +16,10 @@ class WUKONG_API AEnemyAIController : public AAIController
 	
 public:
 	AEnemyAIController();
+	explicit AEnemyAIController(FObjectInitializer const& ObjectInitializer);
+
 
 protected:
 	virtual void BeginPlay() override;
+	virtual void OnPossess(APawn* InPawn) override;
 };

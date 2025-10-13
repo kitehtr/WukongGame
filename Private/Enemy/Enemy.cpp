@@ -22,6 +22,7 @@ void AEnemy::BeginPlay()
 	EnemyAIController = Cast <AEnemyAIController> (GetController());
 }
 
+
 // Called every frame
 void AEnemy::Tick(float DeltaTime)
 {

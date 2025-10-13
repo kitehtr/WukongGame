@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "BehaviorTree/BehaviorTree.h"
 #include "MeleeHitInterface.h"
 #include "Enemy.generated.h"
 
@@ -18,6 +19,11 @@ public:
 	// Sets default values for this character's properties
 	AEnemy();
 
+	UBehaviorTree* GetBehaviorTree() const
+	{
+		return Tree;
+	}
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -27,6 +33,9 @@ protected:
 
 	UFUNCTION(BlueprintImplementableEvent)
 	void EnemyDeath();
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI", meta=(AllowPrivateAccess="true"))
+	UBehaviorTree* Tree;
 
 public:	
 	// Called every frame
