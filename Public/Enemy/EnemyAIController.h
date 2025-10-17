@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "AIController.h"
+#include "Perception/AIPerceptionTypes.h"
 #include "EnemyAIController.generated.h"
 
 /**
@@ -15,11 +16,18 @@ class WUKONG_API AEnemyAIController : public AAIController
 	GENERATED_BODY()
 	
 public:
-	AEnemyAIController();
 	explicit AEnemyAIController(FObjectInitializer const& ObjectInitializer);
 
 
 protected:
 	virtual void BeginPlay() override;
 	virtual void OnPossess(APawn* InPawn) override;
+
+private:
+	class UAISenseConfig_Sight* SightConfig;
+
+	void SetupPerceptionSystem();
+
+	UFUNCTION()
+	void OnTargetFound(AActor* Actor, FAIStimulus const Stimulus);
 };

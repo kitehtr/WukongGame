@@ -6,6 +6,7 @@
 #include "Components/BoxComponent.h"
 #include "GameFramework/Character.h"
 #include "WukongCharacterInterface.h"
+#include "Perception/AIPerceptionStimuliSourceComponent.h"
 #include "MyWukongCharacter.generated.h"
 
 //Declarations
@@ -210,5 +211,10 @@ private:
 	TSet<AActor*> AlreadyHitActors;
 
 	EAttackType CurrentAttackType;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI", meta = (AllowPrivateAccess = "true"))
+	UAIPerceptionStimuliSourceComponent* StimulusSource;
+
+	void SetupStimulusSource();
 
 };

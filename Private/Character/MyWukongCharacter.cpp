@@ -12,6 +12,8 @@
 #include "../../Public/Enemy/MeleeHitInterface.h"
 #include "../../Public/Enemy/Enemy.h"
 #include "Kismet/GameplayStatics.h"
+#include "Perception/AIPerceptionStimuliSourceComponent.h"
+#include "Perception/AISense_Sight.h"
 
 // Sets default values
 AMyWukongCharacter::AMyWukongCharacter() :
@@ -33,6 +35,8 @@ AMyWukongCharacter::AMyWukongCharacter() :
 	FollowCameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera Component"));
 	FollowCameraComponent->SetupAttachment(SpringArmComponent, USpringArmComponent::SocketName);
 	FollowCameraComponent->bUsePawnControlRotation = false;
+
+	SetupStimulusSource();
 
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationYaw = true;
@@ -105,6 +109,12 @@ void AMyWukongCharacter::BeginPlay()
 	if (pAnimInst != nullptr)
 	{
 		pAnimInst->OnPlayMontageNotifyBegin.AddDynamic(this, &AMyWukongCharacter::HandleOnMontageNotifyBegin);
+	}
+
+	if (StimulusSource)
+	{
+		StimulusSource->RegisterForSense(UAISense_Sight::StaticClass());
+		StimulusSource->RegisterWithPerceptionSystem();
 	}
 }
 
@@ -773,7 +783,15 @@ void AMyWukongCharacter::ResetHeavyCombo()
 	HeavyAttackComboCounter = 0;
 }
 
-
+void AMyWukongCharacter::SetupStimulusSource()
+{
+	StimulusSource = CreateDefaultSubobject<UAIPerceptionStimuliSourceComponent>(TEXT("Stimulus"));
+	if (StimulusSource)
+	{
+		StimulusSource->RegisterForSense(TSubclassOf<UAISense_Sight>());
+		StimulusSource->RegisterWithPerceptionSystem();
+	}
+}
 
 // Called to bind functionality to input
 void AMyWukongCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
