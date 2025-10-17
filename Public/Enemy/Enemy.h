@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Project/WukongGame/Public/Enemy/AI/PatrolPath.h"
+#include "Engine/DataAsset.h"
 #include "GameFramework/Character.h"
 #include "BehaviorTree/BehaviorTree.h"
 #include "MeleeHitInterface.h"
@@ -23,6 +25,8 @@ public:
 	{
 		return Tree;
 	}
+
+	APatrolPath* GetPatrolPath() const;
 
 protected:
 	// Called when the game starts or when spawned
@@ -49,16 +53,19 @@ public:
 	FORCEINLINE float GetBaseDamage() const { return BaseDamage; }
 
 private:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"));
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))
 	FName EnemyName;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"));
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))
 	float BaseDamage;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"));
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))
 	float Health;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"));
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))
 	float MaxHealth;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI", meta = (AllowPrivateAccess = "true"))
+	APatrolPath* PatrolPath;
 
 };

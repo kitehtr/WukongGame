@@ -14,6 +14,15 @@ AEnemy::AEnemy() :
 
 }
 
+APatrolPath* AEnemy::GetPatrolPath() const
+{
+	if (!IsValid(PatrolPath))
+	{
+		return nullptr;
+	}
+	return PatrolPath;
+}
+
 // Called when the game starts or when spawned
 void AEnemy::BeginPlay()
 {

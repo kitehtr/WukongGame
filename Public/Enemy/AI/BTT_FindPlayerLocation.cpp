@@ -7,7 +7,7 @@
 #include "BehaviorTree/BlackboardComponent.h"
 #include "NavigationSystem.h"
 
-UBTT_FindPlayerLocation::UBTT_FindPlayerLocation(FObjectInitializer const&)
+UBTT_FindPlayerLocation::UBTT_FindPlayerLocation(FObjectInitializer const& ObjectInitializer) : UBTTask_BlackboardBase{ ObjectInitializer }
 {
 	NodeName = "Find Player Location";
 }

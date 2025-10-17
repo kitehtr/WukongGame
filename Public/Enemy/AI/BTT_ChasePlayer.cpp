@@ -5,7 +5,7 @@
 #include "BehaviorTree/BlackboardComponent.h"
 #include "Blueprint/AIBlueprintHelperLibrary.h"
 
-UBTT_ChasePlayer::UBTT_ChasePlayer(FObjectInitializer const&)
+UBTT_ChasePlayer::UBTT_ChasePlayer(FObjectInitializer const& ObjectInitializer) : UBTTask_BlackboardBase{ ObjectInitializer }
 {
 	NodeName = "Chase Player";
 }
