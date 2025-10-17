@@ -45,7 +45,7 @@ void AEnemyAIController::SetupPerceptionSystem()
     if (SightConfig)
     {
         SetPerceptionComponent(*CreateDefaultSubobject<UAIPerceptionComponent>(TEXT("Perception Component")));
-        SightConfig->SightRadius = 800.0f;
+        SightConfig->SightRadius = 2000.0f;
         SightConfig->LoseSightRadius = SightConfig->SightRadius + 25.0f;
         SightConfig->PeripheralVisionAngleDegrees = 90.0f;
         SightConfig->SetMaxAge(5.0f);
