@@ -32,6 +32,9 @@ EBTNodeResult::Type UBTT_MeleeAttack::ExecuteTask(UBehaviorTreeComponent& OwnerC
     if (enemy)
     {
         enemy->MainMeleeAttack(); 
+        FTimerHandle TimerHandle;
+        GetWorld()->GetTimerManager().SetTimer(TimerHandle, [&OwnerComp, this]()
+            {FinishLatentTask(OwnerComp, EBTNodeResult::Succeeded);}, 2.0f, false); 
     }
 
      return EBTNodeResult::InProgress;
