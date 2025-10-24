@@ -22,6 +22,10 @@ public:
 
 	virtual void ActivateRightWeapon();
 	virtual void DeactivateRightWeapon();
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+	UAnimMontage* MeleeAttackMontage;
+	UFUNCTION(BlueprintCallable)
+	void MainMeleeAttack();
 
 protected:
 	virtual void BeginPlay() override;
@@ -36,16 +40,13 @@ protected:
 	void OnRightWeaponOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
 private:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Combat", meta=(AllowPrivateAccess="true"))
-	UAnimMontage* MeleeAttackMontage;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Montage", meta = (AllowPrivateAccess = "true"))
 	UBoxComponent* RightWeaponCollision;
 
 	FTimerHandle TimerAttack;
 
-	UFUNCTION(BlueprintCallable)
-	void MainMeleeAttack();
+	
 
 	TSet<AActor*> AlreadyHitActors;
 	
