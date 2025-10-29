@@ -12,9 +12,10 @@
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimInstance.h"
 
-void UBTT_MeleeAttack::BTT_MeleeAttack()
+UBTT_MeleeAttack::UBTT_MeleeAttack()
 {
 	NodeName = TEXT("Melee Attack");
+    bNotifyTick = true;
 }
 
 EBTNodeResult::Type UBTT_MeleeAttack::ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
@@ -22,22 +23,34 @@ EBTNodeResult::Type UBTT_MeleeAttack::ExecuteTask(UBehaviorTreeComponent& OwnerC
     auto const OutOfRange = !OwnerComp.GetBlackboardComponent()->GetValueAsBool(GetSelectedBlackboardKey());
     if (OutOfRange)
     {
-        FinishLatentTask(OwnerComp, EBTNodeResult::Succeeded);
-        return EBTNodeResult::Succeeded;
+        return EBTNodeResult::Failed;
     }
 
     auto const* const AIController = Cast<AEnemyAIController>(OwnerComp.GetAIOwner());
-    auto* const enemy = Cast<AEnemyMelee>(AIController->GetPawn());
-
-    if (enemy)
+    if (!AIController)
     {
-        enemy->MainMeleeAttack(); 
-        FTimerHandle TimerHandle;
-        GetWorld()->GetTimerManager().SetTimer(TimerHandle, [&OwnerComp, this]()
-            {FinishLatentTask(OwnerComp, EBTNodeResult::Succeeded);}, 2.0f, false); 
+        return EBTNodeResult::Failed;
     }
 
-     return EBTNodeResult::InProgress;
+    auto* const enemy = Cast<AEnemyMelee>(AIController->GetPawn());
+    if (!enemy)
+    {
+        return EBTNodeResult::Failed;
+    }
+
+    enemy->MainMeleeAttack();
+
+    TWeakObjectPtr<UBehaviorTreeComponent> WeakOwnerComp = &OwnerComp;
+
+    GetWorld()->GetTimerManager().SetTimer(AttackTimerHandle, [this, WeakOwnerComp]()
+        {
+            if (WeakOwnerComp.IsValid())
+            {
+                FinishLatentTask(*WeakOwnerComp.Get(), EBTNodeResult::Succeeded);
+            }
+        }, 2.0f, false);
+
+    return EBTNodeResult::InProgress;
 }
 
 bool UBTT_MeleeAttack::MontageHasFinished(AEnemy* const enemy, UAnimMontage* Montage)

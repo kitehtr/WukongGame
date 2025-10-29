@@ -19,9 +19,11 @@ class WUKONG_API UBTT_MeleeAttack : public UBTTask_BlackboardBase
 	GENERATED_BODY()
 	
 public:
-	void BTT_MeleeAttack();
+	UBTT_MeleeAttack();
 	EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
 
 private:
 	bool MontageHasFinished(AEnemy* const enemy, UAnimMontage* Montage);
+
+	FTimerHandle AttackTimerHandle;
 };

@@ -38,8 +38,7 @@ protected:
 	UFUNCTION(BlueprintImplementableEvent)
 	void EnemyDeath();
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI", meta=(AllowPrivateAccess="true"))
-	UBehaviorTree* Tree;
+
 
 public:	
 	// Called every frame
@@ -51,6 +50,9 @@ public:
 
 	//Getter
 	FORCEINLINE float GetBaseDamage() const { return BaseDamage; }
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI", meta = (AllowPrivateAccess = "true"))
+	UBehaviorTree* Tree;
 
 private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))

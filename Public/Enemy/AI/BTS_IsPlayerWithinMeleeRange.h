@@ -15,7 +15,7 @@ class WUKONG_API UBTS_IsPlayerWithinMeleeRange : public UBTService_BlackboardBas
 	GENERATED_BODY()
 	
 public:
-	void UBTS_IsPlayerInMeleeRange();
+	UBTS_IsPlayerWithinMeleeRange();
 	void TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds) override;
 
 private:

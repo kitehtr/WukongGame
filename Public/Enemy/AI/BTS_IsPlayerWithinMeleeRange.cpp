@@ -9,10 +9,10 @@
 #include "Engine/World.h"
 #include "BehaviorTree/BlackboardComponent.h"
 
-void UBTS_IsPlayerWithinMeleeRange::UBTS_IsPlayerInMeleeRange()
+UBTS_IsPlayerWithinMeleeRange::UBTS_IsPlayerWithinMeleeRange()
 {
-	bNotifyBecomeRelevant = true;
-	NodeName = TEXT("Is Player in Melee Range");
+    bNotifyBecomeRelevant = true;
+    NodeName = TEXT("Is Player in Melee Range");
 }
 
 void UBTS_IsPlayerWithinMeleeRange::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds)

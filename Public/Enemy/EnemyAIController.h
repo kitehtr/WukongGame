@@ -18,10 +18,12 @@ class WUKONG_API AEnemyAIController : public AAIController
 public:
 	explicit AEnemyAIController(FObjectInitializer const& ObjectInitializer);
 
+	virtual void OnPossess(APawn* InPawn) override;
+
 
 protected:
 	virtual void BeginPlay() override;
-	virtual void OnPossess(APawn* InPawn) override;
+
 
 private:
 	class UAISenseConfig_Sight* SightConfig;
@@ -30,4 +32,6 @@ private:
 
 	UFUNCTION()
 	void OnTargetFound(AActor* Actor, FAIStimulus const Stimulus);
+
+
 };
