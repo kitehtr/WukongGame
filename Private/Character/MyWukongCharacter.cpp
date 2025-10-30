@@ -1,5 +1,3 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #include "../../Public/Character/MyWukongCharacter.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Engine/EngineTypes.h"  
@@ -15,7 +13,6 @@
 #include "Perception/AIPerceptionStimuliSourceComponent.h"
 #include "Perception/AISense_Sight.h"
 
-// Sets default values
 AMyWukongCharacter::AMyWukongCharacter() :
 	DefaultTurnRate(45.0f),
 	DefaultLookUpRate(45.0f),
@@ -23,10 +20,10 @@ AMyWukongCharacter::AMyWukongCharacter() :
 	RunSpeed(1500.0f),
 	BaseDamage(10.0f),
 	Health(100.0f),
-	MaxHealth(100.0f)
+	MaxHealth(100.0f),
+	bCanHeavyAttack(true)
 
 {
-	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	SpringArmComponent = CreateDefaultSubobject<USpringArmComponent>(TEXT("Spring Arm"));
 	SpringArmComponent->SetupAttachment(RootComponent);
 	SpringArmComponent->TargetArmLength = 300.0f;
@@ -157,6 +154,7 @@ void AMyWukongCharacter::Landed(const FHitResult& Hit)
 	bCanAttack = true;
 	bIsAttacking = false;
 	bIsHeavyAttacking = false;
+	bCanHeavyAttack = true;
 
 	if (bIsAirAttacking)
 	{
@@ -175,7 +173,7 @@ void AMyWukongCharacter::Landed(const FHitResult& Hit)
 
 void AMyWukongCharacter::MoveForward(float Value)
 {
-	if (bIsAttacking || bIsHeavyAttacking)
+	if (bIsAttacking || bIsHeavyAttacking || bIsInHitReact)
 	{
 		return;
 	}
@@ -191,7 +189,7 @@ void AMyWukongCharacter::MoveForward(float Value)
 
 void AMyWukongCharacter::MoveRight(float Value)
 {
-	if (bIsAttacking || bIsHeavyAttacking)
+	if (bIsAttacking || bIsHeavyAttacking || bIsInHitReact)
 	{
 		return;
 	}		
@@ -230,6 +228,11 @@ void AMyWukongCharacter::StopRunning()
 
 void AMyWukongCharacter::Dodge()
 {
+	if (bIsInHitReact)
+	{
+		return;
+	}
+
 	if (bIsAttacking || bIsHeavyAttacking)
 	{
 		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
@@ -342,7 +345,7 @@ void AMyWukongCharacter::MainAttack()
 {
 	FindAttackTarget();
 
-	if (bIsDodging || bIsAttacking || !bCanAttack || bIsHeavyAttacking)
+	if (bIsDodging || bIsAttacking || !bCanAttack || bIsHeavyAttacking || bIsInHitReact)
 	{
 		if (!bAttackDelay) 
 		{
@@ -407,6 +410,9 @@ void AMyWukongCharacter::OnAttackEnded(UAnimMontage* Montage, bool bInterrupted)
 {
 	bIsAttacking = false;
 	bIsHeavyAttacking = false;
+
+	CanDodge = true;
+
 
 	if (bAttackDelay)
 	{
@@ -641,7 +647,7 @@ void AMyWukongCharacter::AOEDamage()
 
 void AMyWukongCharacter::HeavyAttack()
 {
-	if (bIsDodging || bIsAttacking || !bCanAttack || bIsHeavyAttacking)
+	if (bIsDodging || bIsAttacking || !bCanAttack || bIsHeavyAttacking || !CanDodge || !bCanHeavyAttack || bIsInHitReact)
 	{
 		return;
 	}
@@ -659,6 +665,8 @@ void AMyWukongCharacter::HeavyAttack()
 	{
 		AlreadyHitActors.Empty();
 		bIsHeavyAttacking = true;
+		bCanHeavyAttack = false;
+		CanDodge = false;
 		CurrentAttackType = EAttackType::HeavyAttack;
 		int32 const HeavySectionCount = HeavyAttackMontage->CompositeSections.Num();
 
@@ -666,10 +674,16 @@ void AMyWukongCharacter::HeavyAttack()
 
 		GetCharacterMovement()->DisableMovement();
 
+		FOnMontageEnded AttackEndedDelegate;
+		AttackEndedDelegate.BindUObject(this, &AMyWukongCharacter::OnAttackEnded);
+		AnimInstance->Montage_SetEndDelegate(AttackEndedDelegate, HeavyAttackMontage);
+
 		AnimInstance->Montage_Play(HeavyAttackMontage);
 		AnimInstance->Montage_JumpToSection(HeavySectionName, HeavyAttackMontage);
 		
 		GetWorld()->GetTimerManager().SetTimer(HeavyComboResetTimer, this, &AMyWukongCharacter::ResetHeavyCombo, 2.0f, false);
+		GetWorld()->GetTimerManager().SetTimer(HeavyAttackCooldownTimer, [this]() {bCanHeavyAttack = true;}, HeavyAttackCooldownTime, false);
+
 	}
 }
 
@@ -850,6 +864,8 @@ void AMyWukongCharacter::DeactivateRightWeapon()
 	RightWeaponCollision->UpdateOverlaps();
 	bIsAttacking = false;
 	bIsHeavyAttacking = false;
+	CanDodge = true;
+	bCanHeavyAttack = true;
 	FTimerHandle MovementTimer;
 	GetWorld()->GetTimerManager().SetTimer(MovementTimer,this,&AMyWukongCharacter::EnableMovement, DelayTimeForAttack, false);
 	/*GetCharacterMovement()->SetMovementMode(MOVE_Walking);*/
@@ -857,26 +873,205 @@ void AMyWukongCharacter::DeactivateRightWeapon()
 
 float AMyWukongCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
 {
-	if (bIsDodging)
+	if (bIsDodging || bIsInHitReact)
 	{
 		return 0.0f;
 	}
+
 	if (Health - DamageAmount <= 0.0f)
 	{
 		Health = 0.0f;
-
-		/*GetMesh()->SetSimulatePhysics(false);
-		GetMesh()->SetVisibility(false);*/
 		GetMesh()->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
 		GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-
 		DeathOfPlayer();
 		return 0.0f;
 	}
 	else
 	{
+		if (FMath::FRand() <= HitReactChance)
+		{
+			PlayHitReaction(DamageCauser);
+		}
+
 		Health -= DamageAmount;
 	}
 	return DamageAmount;
 }
 
+FVector AMyWukongCharacter::GetHitDirectionFromAttacker(AActor* DamageCauser)
+{
+	if (!DamageCauser) return FVector::ForwardVector;
+
+	FVector DirectionToAttacker = (DamageCauser->GetActorLocation() - GetActorLocation()).GetSafeNormal();
+
+	FVector LocalDirection = GetActorRotation().UnrotateVector(DirectionToAttacker);
+	LocalDirection.Z = 0; 
+
+	return LocalDirection.GetSafeNormal();
+}
+
+void AMyWukongCharacter::PlayDirectionalHitReaction(const FVector& HitDirection)
+{
+	if (!GetMesh() || !GetMesh()->GetAnimInstance()) return;
+
+	UAnimMontage* MontageToPlay = nullptr;
+
+	float ForwardDot = FVector::DotProduct(HitDirection, FVector::ForwardVector);
+	float RightDot = FVector::DotProduct(HitDirection, FVector::RightVector);
+
+	if (FMath::Abs(ForwardDot) > FMath::Abs(RightDot))
+	{
+		if (ForwardDot > 0)
+		{
+			MontageToPlay = HitReactionFrontMontage;
+		}
+		else
+		{
+			MontageToPlay = HitReactionBackMontage;
+		}
+	}
+	else
+	{
+		if (RightDot > 0)
+		{
+			MontageToPlay = HitReactionRightMontage;
+		}
+		else
+		{
+			MontageToPlay = HitReactionLeftMontage;
+		}
+	}
+
+	if (MontageToPlay)
+	{
+		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+
+		FOnMontageEnded HitReactEndDelegate;
+		HitReactEndDelegate.BindUObject(this, &AMyWukongCharacter::OnHitReactionEnded);
+		AnimInstance->Montage_SetEndDelegate(HitReactEndDelegate, MontageToPlay);
+
+		float MontageLength = AnimInstance->Montage_Play(MontageToPlay);
+
+		if (MontageLength <= 0.0f)
+		{
+			EndHitReaction();
+			return;
+		}
+
+		float ResetTime = FMath::Max(MontageLength + 0.2f, 1.0f);
+
+		GetWorld()->GetTimerManager().ClearTimer(HitReactTimer);
+
+		GetWorld()->GetTimerManager().SetTimer(
+			HitReactTimer,
+			this,
+			&AMyWukongCharacter::EndHitReaction,
+			ResetTime,
+			false
+		);
+
+	}
+	else
+	{
+		EndHitReaction();
+	}
+}
+
+void AMyWukongCharacter::PlayHitReaction(AActor* DamageCauser)
+{
+	if (bIsInHitReact) return;
+
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+	if (!AnimInstance) return;
+
+	if (!HitReactionFrontMontage && !HitReactionBackMontage &&
+		!HitReactionLeftMontage && !HitReactionRightMontage)
+	{
+		return;
+	}
+
+	bIsInHitReact = true;
+
+	if (bIsAttacking || bIsHeavyAttacking)
+	{
+		AnimInstance->Montage_Stop(0.1f);
+		bIsAttacking = false;
+		bIsHeavyAttacking = false;
+		DeactivateRightWeapon();
+	}
+
+	GetCharacterMovement()->DisableMovement();
+	bCanAttack = false;
+	bCanHeavyAttack = false;
+	CanDodge = false;
+
+	if (DamageCauser)
+	{
+		FVector HitDirection = GetHitDirectionFromAttacker(DamageCauser);
+		PlayDirectionalHitReaction(HitDirection);
+	}
+	else
+	{
+		if (HitReactionFrontMontage)
+		{
+			PlayDirectionalHitReaction(FVector::ForwardVector);
+		}
+		else
+		{
+			EndHitReaction();
+		}
+	}
+}
+
+void AMyWukongCharacter::EndHitReaction()
+{
+	if (!bIsInHitReact)
+		return;
+
+
+	bIsInHitReact = false;
+	bCanAttack = true;
+	bCanHeavyAttack = true;
+	CanDodge = true;
+
+	if (GetCharacterMovement()->MovementMode != MOVE_Walking)
+	{
+		GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+	}
+
+	GetWorld()->GetTimerManager().ClearTimer(HitReactTimer);
+}
+
+void AMyWukongCharacter::OnHitReactionEnded(UAnimMontage* Montage, bool bInterrupted)
+{
+
+	EndHitReaction();
+}
+
+void AMyWukongCharacter::ResetCombatState()
+{
+	
+	bIsInHitReact = false;
+	bIsAttacking = false;
+	bIsHeavyAttacking = false;
+	bIsAirAttacking = false;
+	bIsDodging = false;
+	bCanAttack = true;
+	bCanHeavyAttack = true;
+	CanDodge = true;
+
+	GetWorld()->GetTimerManager().ClearTimer(HitReactTimer);
+	GetWorld()->GetTimerManager().ClearTimer(AttackCooldownTimer);
+	GetWorld()->GetTimerManager().ClearTimer(HeavyAttackCooldownTimer);
+	GetWorld()->GetTimerManager().ClearTimer(AttackInputBuffer);
+
+	GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+	if (AnimInstance)
+	{
+		AnimInstance->Montage_Stop(0.1f);
+	}
+
+	DeactivateRightWeapon();
+
+}

@@ -28,6 +28,20 @@ public:
 
 	APatrolPath* GetPatrolPath() const;
 
+	virtual void Tick(float DeltaTime) override;
+
+	virtual void MeleeHit_Implementation(FHitResult HitResult) override;
+
+	virtual float TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
+
+	FORCEINLINE float GetBaseDamage() const { return BaseDamage; }
+	FORCEINLINE bool IsStunned() const { return bIsStunned; }
+	FORCEINLINE bool CanBeStunned() const { return bCanBeStunned; }
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI", meta = (AllowPrivateAccess = "true"))
+
+	UBehaviorTree* Tree;
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -38,21 +52,41 @@ protected:
 	UFUNCTION(BlueprintImplementableEvent)
 	void EnemyDeath();
 
+	UFUNCTION(BlueprintImplementableEvent, Category = "Combat")
+	void PlayHitReaction(const FVector& HitDirection);
 
+	void StartStun(float Duration);
+	void EndStun();
 
-public:	
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
+	UPROPERTY(BlueprintReadOnly, Category = "Combat")
+	bool bIsStunned = false;
 
-	virtual void MeleeHit_Implementation(FHitResult HitResult) override;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+	bool bCanBeStunned = true;
 
-	virtual float TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+	float StunDuration = 2.0f;
 
-	//Getter
-	FORCEINLINE float GetBaseDamage() const { return BaseDamage; }
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+	float StunCooldown = 5.0f; 
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI", meta = (AllowPrivateAccess = "true"))
-	UBehaviorTree* Tree;
+	FTimerHandle StunTimerHandle;
+	FTimerHandle StunCooldownTimerHandle;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Animation")
+	UAnimMontage* HitReactionFrontMontage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Animation")
+	UAnimMontage* HitReactionBackMontage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Animation")
+	UAnimMontage* HitReactionLeftMontage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Animation")
+	UAnimMontage* HitReactionRightMontage;
+
+	FVector GetHitDirection(AActor* DamageCauser);
+	void PlayDirectionalHitReaction(const FVector& HitDirection);
 
 private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))

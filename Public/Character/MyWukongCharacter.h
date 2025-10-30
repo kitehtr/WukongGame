@@ -47,6 +47,9 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Movement", meta = (AllowPrivateAccess = "true"))
 	bool bIsTripleJumping;
 
+	UFUNCTION(Exec, Category = "Debug")
+	void ResetCombatState();
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -68,6 +71,31 @@ protected:
 	//Montages & animations handling
 	UFUNCTION()
 	void HandleOnMontageNotifyBegin(FName NotifyName, const FBranchingPointNotifyPayload& a_pBranchingPayload);
+
+	void PlayHitReaction(AActor* DamageCauser);
+	void EndHitReaction();
+	void OnHitReactionEnded(UAnimMontage* Montage, bool bInterrupted);
+
+	FVector GetHitDirectionFromAttacker(AActor* DamageCauser);
+	void PlayDirectionalHitReaction(const FVector& HitDirection);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Animation")
+	UAnimMontage* HitReactionFrontMontage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Animation")
+	UAnimMontage* HitReactionBackMontage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Animation")
+	UAnimMontage* HitReactionLeftMontage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Animation")
+	UAnimMontage* HitReactionRightMontage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+	float HitReactChance = 1.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+	bool bIsInHitReact = false;
 
 	void PlayAnimMontage(UAnimMontage* MontageToPlay, FName SectionName = "Default");
 	void OnDodgeEnded(UAnimMontage* Montage, bool bInterrupted);
@@ -100,6 +128,9 @@ protected:
 
 	UFUNCTION(BlueprintImplementableEvent)
 	void DeathOfPlayer();
+
+	UPROPERTY(BlueprintReadOnly, Category = "Movement")
+	bool CanDodge = true;
 
 
 private:
@@ -169,7 +200,7 @@ private:
 
 	void Dodge();
 	bool bIsDodging = false;
-	bool CanDodge = true;
+	
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Jump", meta = (AllowPrivateAccess = "true"))
 	int CurrentJumpCounter = 0;
@@ -200,6 +231,10 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))
 	float HeavyAttackDamage;
 
+	bool bCanHeavyAttack;
+	FTimerHandle HeavyAttackCooldownTimer;
+	float HeavyAttackCooldownTime = 2.0f;
+
 	//resetting combos
 	FTimerHandle LightComboResetTimer;
 	FTimerHandle HeavyComboResetTimer;
@@ -207,6 +242,8 @@ private:
 
 	void ResetCombo();
 	void ResetHeavyCombo();
+
+	FTimerHandle HitReactTimer;
 
 	TSet<AActor*> AlreadyHitActors;
 

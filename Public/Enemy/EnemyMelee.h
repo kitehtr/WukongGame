@@ -34,6 +34,8 @@ protected:
 
 	void ResetMovementWalking();
 
+	bool bIsDead = false;
+
 	FName GetAttackSectionName(int32 SectionCount);
 
 	UFUNCTION()
