@@ -2,6 +2,7 @@
 
 
 #include "../../Public/Enemy/EnemyMelee.h"
+#include "Project/WukongGame/Public/Enemy/EnemyAttackTokenManager.h"
 #include "../../Public/Character/MyWukongCharacter.h"
 #include "Kismet/GameplayStatics.h"
 #include "../../Public/Enemy/EnemyAIController.h"
@@ -11,7 +12,6 @@ AEnemyMelee::AEnemyMelee()
 {
 	RightWeaponCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("Right Weapon Box"));
 	RightWeaponCollision->SetupAttachment(GetMesh(), FName("RightWeaponSocket"));
-
 	RightWeaponCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
@@ -33,10 +33,32 @@ void AEnemyMelee::BeginPlay()
 	Super::BeginPlay();
 
 	RightWeaponCollision->OnComponentBeginOverlap.AddDynamic(this, &AEnemyMelee::OnRightWeaponOverlap);
+
+	TokenManager = AEnemyAttackTokenManager::GetInstance(GetWorld());
+	if (!TokenManager)
+	{
+		TokenManager = AEnemyAttackTokenManager::GetInstance(GetWorld());
+	}
+}
+
+void AEnemyMelee::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (bHasAttackToken && TokenManager)
+	{
+		TokenManager->ReleaseAttackToken(this);
+		bHasAttackToken = false;
+	}
+
+	Super::EndPlay(EndPlayReason);
 }
 
 void AEnemyMelee::MeleeAttack()
 {
+	if (!RequestAttackToken())
+	{
+		return;
+	}
+
 	AlreadyHitActors.Empty();
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 	if (AnimInstance && MeleeAttackMontage)
@@ -51,7 +73,12 @@ void AEnemyMelee::MeleeAttack()
 
 		AnimInstance->Montage_Play(MeleeAttackMontage);
 		AnimInstance->Montage_JumpToSection(SectionName, MeleeAttackMontage);
-		GetWorldTimerManager().SetTimer(TimerAttack, this, &AEnemyMelee::ResetMovementWalking, SectionLength);
+
+		GetWorldTimerManager().SetTimer(
+			TimerAttack,[this](){ResetMovementWalking();ReleaseAttackToken();},SectionLength,false);}
+	else
+	{
+		ReleaseAttackToken();
 	}
 }
 
@@ -108,4 +135,29 @@ void AEnemyMelee::OnRightWeaponOverlap(UPrimitiveComponent* OverlappedComponent,
 void AEnemyMelee::MainMeleeAttack()
 {
 	MeleeAttack();
+}
+
+bool AEnemyMelee::RequestAttackToken()
+{
+	if (!TokenManager)
+	{
+		return false;
+	}
+
+	if (bHasAttackToken)
+	{
+		return true;
+	}
+
+	bHasAttackToken = TokenManager->RequestAttackToken(this);
+	return bHasAttackToken;
+}
+
+void AEnemyMelee::ReleaseAttackToken()
+{
+	if (bHasAttackToken && TokenManager)
+	{
+		TokenManager->ReleaseAttackToken(this);
+		bHasAttackToken = false;
+	}
 }

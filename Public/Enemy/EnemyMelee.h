@@ -11,6 +11,7 @@
  * 
  */
 class UAnimMontage;
+class AEnemyAttackTokenManager;
 
 UCLASS()
 class WUKONG_API AEnemyMelee : public AEnemy
@@ -27,8 +28,13 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void MainMeleeAttack();
 
+	bool RequestAttackToken();
+	void ReleaseAttackToken();
+	bool HasAttackToken() const { return bHasAttackToken; }
+
 protected:
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	void MeleeAttack();
 
@@ -47,9 +53,11 @@ private:
 	UBoxComponent* RightWeaponCollision;
 
 	FTimerHandle TimerAttack;
-
-	
-
 	TSet<AActor*> AlreadyHitActors;
+
+	AEnemyAttackTokenManager* TokenManager;
+	bool bHasAttackToken = false;
 	
+	UPROPERTY(EditAnywhere, Category = "Combat", meta = (AllowPrivateAccess = "true"))
+	float TokenRetryDelay = 1.0f;
 };
