@@ -50,6 +50,15 @@ public:
 	UFUNCTION(Exec, Category = "Debug")
 	void ResetCombatState();
 
+	UFUNCTION(BlueprintCallable, Category = "Health")
+	void AddHealth(float Amount);
+
+	UFUNCTION(BlueprintPure, Category = "Health")
+	float GetHealth() const { return Health; }
+
+	UFUNCTION(BlueprintPure, Category = "Health")
+	float GetMaxHealth() const { return MaxHealth; }
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -71,7 +80,6 @@ protected:
 	//Montages & animations handling
 	UFUNCTION()
 	void HandleOnMontageNotifyBegin(FName NotifyName, const FBranchingPointNotifyPayload& a_pBranchingPayload);
-
 	void PlayHitReaction(AActor* DamageCauser);
 	void EndHitReaction();
 	void OnHitReactionEnded(UAnimMontage* Montage, bool bInterrupted);
@@ -103,6 +111,7 @@ protected:
 	FName GetAttackSectionName(int32 SectionCount);
 	FName GetHeavyAttackSectionName(int32 HeavySectionCount);
 
+	void ForceAttackEnd();
 	bool bCanAttack = true;
 	FTimerHandle AttackCooldownTimer;
 
@@ -110,6 +119,9 @@ protected:
 	void ClearAttackDelay();
 
 	void MainAttack();
+	void ExecuteRegularAttack();
+	void ExecuteLockOnAttack();
+
 
 	void FindAttackTarget();
 	void UpdateNearbyEnemies();
@@ -122,6 +134,11 @@ protected:
 	void AOEDamage();
 	void OnAttackEnded(UAnimMontage* Montage, bool bInterrupted);
 	void EnableMovement();
+
+	FTimerHandle HeavyAttackInputBuffer;
+	bool bHeavyAttackDelay = false;
+	void ClearHeavyAttackDelay();
+	void BufferHeavyAttackInput();
 
 	UFUNCTION()
 	void OnRightWeaponOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
@@ -159,6 +176,9 @@ private:
 
 	bool bAttackDelay = false;
 	FTimerHandle AttackInputBuffer;
+
+	FTimerHandle AttackFailsafeHandle;
+	FTimerHandle MovementRecoveryHandle;
 
 	AActor* CurrentTarget = nullptr;
 	float MaxAttackRange = 2000.0f; 
@@ -233,7 +253,7 @@ private:
 
 	bool bCanHeavyAttack;
 	FTimerHandle HeavyAttackCooldownTimer;
-	float HeavyAttackCooldownTime = 2.0f;
+	float HeavyAttackCooldownTime = 3.5f;
 
 	//resetting combos
 	FTimerHandle LightComboResetTimer;

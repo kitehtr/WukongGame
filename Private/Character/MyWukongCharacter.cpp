@@ -21,6 +21,7 @@ AMyWukongCharacter::AMyWukongCharacter() :
 	BaseDamage(10.0f),
 	Health(100.0f),
 	MaxHealth(100.0f),
+	HeavyAttackCooldownTime(1.0f),
 	bCanHeavyAttack(true)
 
 {
@@ -90,7 +91,6 @@ void AMyWukongCharacter::HandleOnMontageNotifyBegin(FName NotifyName, const FBra
 	}
 }
 
-// Called when the game starts or when spawned
 void AMyWukongCharacter::BeginPlay()
 {
 	Super::BeginPlay();
@@ -101,6 +101,7 @@ void AMyWukongCharacter::BeginPlay()
 	RightWeaponCollision->SetCollisionObjectType(ECollisionChannel::ECC_WorldDynamic);
 	RightWeaponCollision->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
 	RightWeaponCollision->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Overlap);
+	RightWeaponCollision->SetCollisionResponseToChannel(ECollisionChannel::ECC_WorldDynamic, ECollisionResponse::ECR_Overlap);
 
 	UAnimInstance* pAnimInst = GetMesh()->GetAnimInstance();
 	if (pAnimInst != nullptr)
@@ -343,15 +344,18 @@ void AMyWukongCharacter::EnableWalk()
 
 void AMyWukongCharacter::MainAttack()
 {
-	FindAttackTarget();
-
-	if (bIsDodging || bIsAttacking || !bCanAttack || bIsHeavyAttacking || bIsInHitReact)
+	if (bIsDodging || bIsHeavyAttacking || bIsInHitReact || !bCanAttack)
 	{
-		if (!bAttackDelay) 
+		if (!bAttackDelay)
 		{
 			bAttackDelay = true;
 			GetWorld()->GetTimerManager().SetTimer(AttackInputBuffer, this, &AMyWukongCharacter::ClearAttackDelay, 0.2f, false);
 		}
+		return;
+	}
+
+	if (bIsAttacking)
+	{
 		return;
 	}
 
@@ -361,10 +365,19 @@ void AMyWukongCharacter::MainAttack()
 		GetWorld()->GetTimerManager().ClearTimer(AttackInputBuffer);
 	}
 
-	if (CurrentTarget)
+	GetWorld()->GetTimerManager().ClearTimer(AttackCooldownTimer);
+	GetWorld()->GetTimerManager().ClearTimer(LightComboResetTimer);
+	GetWorld()->GetTimerManager().ClearTimer(AttackFailsafeHandle);
+
+	if (!bIsAttacking && !bIsMovingToTarget)
+	{
+		FindAttackTarget();
+	}
+
+	if (CurrentTarget && !bIsMovingToTarget)
 	{
 		MoveToTargetToAttack();
-		return; 
+		return;
 	}
 
 	if (GetCharacterMovement()->IsFalling())
@@ -373,55 +386,136 @@ void AMyWukongCharacter::MainAttack()
 		return;
 	}
 
-	GetWorld()->GetTimerManager().ClearTimer(LightComboResetTimer);
+	ExecuteRegularAttack();
 
+}
+
+void AMyWukongCharacter::ExecuteRegularAttack()
+{
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 	if (AnimInstance && MainAttackMontage)
 	{
-		AlreadyHitActors.Empty();
 		bIsAttacking = true;
 		bCanAttack = false;
+		AlreadyHitActors.Empty();
 		CurrentAttackType = EAttackType::BasicAttack;
-		int32 const SectionCount = MainAttackMontage->CompositeSections.Num();
+		FName const SectionName = GetAttackSectionName(MainAttackMontage->CompositeSections.Num());
 
-		FName const SectionName = GetAttackSectionName(SectionCount);
-
-		GetCharacterMovement()->DisableMovement();
+		if (AnimInstance->Montage_IsPlaying(nullptr))
+		{
+			AnimInstance->Montage_Stop(0.1f);
+		}
 
 		FOnMontageEnded AttackEndedDelegate;
 		AttackEndedDelegate.BindUObject(this, &AMyWukongCharacter::OnAttackEnded);
 		AnimInstance->Montage_SetEndDelegate(AttackEndedDelegate, MainAttackMontage);
 
-		AnimInstance->Montage_Play(MainAttackMontage);
+		if (!GetCharacterMovement()->IsFalling())
+		{
+			GetCharacterMovement()->DisableMovement();
+
+			FTimerHandle SafetyMoveTimer;
+			GetWorld()->GetTimerManager().SetTimer(SafetyMoveTimer, [this]() {
+				if (GetCharacterMovement()->MovementMode != MOVE_Walking && !GetCharacterMovement()->IsFalling())
+				{
+					GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+				}
+				}, 0.3f, false); 
+		}
+
+		float PlayTime = AnimInstance->Montage_Play(MainAttackMontage);
 		AnimInstance->Montage_JumpToSection(SectionName, MainAttackMontage);
 
-		GetWorld()->GetTimerManager().SetTimer(LightComboResetTimer, this, &AMyWukongCharacter::ResetCombo, 4.0f, false);
+		if (PlayTime > 0.0f)
+		{
+			float AttackDuration = PlayTime * 0.2f; 
+			GetWorld()->GetTimerManager().SetTimer(AttackFailsafeHandle, this, &AMyWukongCharacter::ForceAttackEnd, AttackDuration, false);
 
-		GetWorld()->GetTimerManager().SetTimer(AttackCooldownTimer, [this]() {bCanAttack = true;}, 0.5f, false);
+			GetWorld()->GetTimerManager().SetTimer(AttackCooldownTimer, [this]() {
+				bCanAttack = true;
+				}, 0.2f, false);
+		}
+		else
+		{
+			ForceAttackEnd();
+		}
+
+		GetWorld()->GetTimerManager().SetTimer(LightComboResetTimer, this, &AMyWukongCharacter::ResetCombo, 4.0f, false);
 	}
 	else
 	{
-		bIsAttacking = false;
-		bCanAttack = true; 
+		ForceAttackEnd();
 	}
+}
+
+void AMyWukongCharacter::ForceAttackEnd()
+{
+	GetWorld()->GetTimerManager().ClearTimer(AttackCooldownTimer);
+	GetWorld()->GetTimerManager().ClearTimer(AttackFailsafeHandle);
+	GetWorld()->GetTimerManager().ClearTimer(LightComboResetTimer);
+	GetWorld()->GetTimerManager().ClearTimer(HeavyComboResetTimer);
+	GetWorld()->GetTimerManager().ClearTimer(MoveToTargetTimer);
+	GetWorld()->GetTimerManager().ClearTimer(AttackInputBuffer);
+	GetWorld()->GetTimerManager().ClearTimer(HeavyAttackInputBuffer);
+
+	bIsAttacking = false;
+	bIsHeavyAttacking = false;
+	bIsAirAttacking = false;
+	bCanAttack = true;
+	bCanHeavyAttack = true;
+	CanDodge = true;
+	bIsMovingToTarget = false;
+	bAttackDelay = false;
+	bHeavyAttackDelay = false;
+
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+	if (AnimInstance)
+	{
+		if (MainAttackMontage && AnimInstance->Montage_IsPlaying(MainAttackMontage))
+		{
+			AnimInstance->Montage_Stop(0.1f, MainAttackMontage);
+		}
+		if (HeavyAttackMontage && AnimInstance->Montage_IsPlaying(HeavyAttackMontage))
+		{
+			AnimInstance->Montage_Stop(0.1f, HeavyAttackMontage);
+		}
+		if (AirAttackMontage && AnimInstance->Montage_IsPlaying(AirAttackMontage))
+		{
+			AnimInstance->Montage_Stop(0.1f, AirAttackMontage);
+		}
+	}
+
+	UCharacterMovementComponent* Movement = GetCharacterMovement();
+	if (Movement)
+	{
+		if (Movement->MovementMode != MOVE_Walking && !Movement->IsFalling())
+		{
+			Movement->SetMovementMode(MOVE_Walking);
+		}
+
+	}
+
+	DeactivateRightWeapon();
 }
 
 void AMyWukongCharacter::OnAttackEnded(UAnimMontage* Montage, bool bInterrupted)
 {
-	bIsAttacking = false;
-	bIsHeavyAttacking = false;
+	if (Montage != MainAttackMontage && Montage != HeavyAttackMontage && Montage != AirAttackMontage)
+	{
+		return;
+	}
 
-	CanDodge = true;
+	GetWorld()->GetTimerManager().ClearTimer(AttackFailsafeHandle);
+	ForceAttackEnd();
 
+	if (bHeavyAttackDelay)
+	{
+		GetWorld()->GetTimerManager().SetTimer(HeavyAttackInputBuffer, this, &AMyWukongCharacter::BufferHeavyAttackInput, 0.8f, false);
+	}
 
 	if (bAttackDelay)
 	{
 		GetWorld()->GetTimerManager().SetTimer(AttackInputBuffer, this, &AMyWukongCharacter::BufferAttackInput, 0.1f, false);
-	}
-
-	if (GetCharacterMovement()->MovementMode != MOVE_Walking)
-	{
-		GetCharacterMovement()->SetMovementMode(MOVE_Walking);
 	}
 }
 
@@ -435,9 +529,26 @@ void AMyWukongCharacter::BufferAttackInput()
 	}
 }
 
+void AMyWukongCharacter::BufferHeavyAttackInput()
+{
+	if (bHeavyAttackDelay && !bIsHeavyAttacking && bCanHeavyAttack && !bIsDodging && !bIsAttacking)
+	{
+		bHeavyAttackDelay = false;
+		GetWorld()->GetTimerManager().ClearTimer(HeavyAttackInputBuffer);
+		HeavyAttack();
+	}
+}
+
 void AMyWukongCharacter::MoveToTargetToAttack()
 {
-	if (!CurrentTarget) return;
+	if (!CurrentTarget || bIsMovingToTarget)
+	{
+		ExecuteRegularAttack();
+		return;
+	}
+
+	bIsMovingToTarget = true;
+	bIsAttacking = true;
 
 	FVector TargetLocation = CurrentTarget->GetActorLocation();
 	FVector Direction = (TargetLocation - GetActorLocation()).GetSafeNormal();
@@ -450,9 +561,9 @@ void AMyWukongCharacter::MoveToTargetToAttack()
 	TargetSmoothRotation = TargetRotation;
 	bRotatingToTarget = true;
 
-	if (DistanceToTarget < 100.0f)
+	if (DistanceToTarget < 150.0f)
 	{
-		ExecuteAttack();
+		ExecuteLockOnAttack(); 
 		return;
 	}
 
@@ -464,16 +575,65 @@ void AMyWukongCharacter::MoveToTargetToAttack()
 	GetCharacterMovement()->BrakingDecelerationWalking = 10.0f;
 
 	float MoveTime = DistanceToTarget / LaunchSpeed;
-	MoveTime = FMath::Clamp(MoveTime, 0.1f, 0.8f);
+	MoveTime = FMath::Clamp(MoveTime, 0.1f, 0.6f);
 
-	GetWorld()->GetTimerManager().SetTimer(MoveToTargetTimer,this,&AMyWukongCharacter::ExecuteAttack,MoveTime,false);
+	GetWorld()->GetTimerManager().SetTimer(MoveToTargetTimer, this, &AMyWukongCharacter::ExecuteLockOnAttack, MoveTime, false);
+
+	FTimerHandle SafetyTimer;
+	GetWorld()->GetTimerManager().SetTimer(SafetyTimer, [this]() {
+		if (bIsMovingToTarget)
+		{
+			ExecuteLockOnAttack(); // CHANGED: Use dedicated function
+		}
+		}, 1.0f, false);
 }
 
+// NEW: Dedicated function for lock-on attacks
+void AMyWukongCharacter::ExecuteLockOnAttack()
+{
+	bIsMovingToTarget = false;
+	GetWorld()->GetTimerManager().ClearTimer(MoveToTargetTimer);
+
+	AActor* AttackTarget = CurrentTarget;
+	CurrentTarget = nullptr; 
+
+	if (GetCharacterMovement()->IsFalling())
+	{
+		AirAttack();
+		return;
+	}
+
+	if (AttackTarget)
+	{
+		FVector Direction = (AttackTarget->GetActorLocation() - GetActorLocation()).GetSafeNormal();
+		FRotator TargetRotation = Direction.Rotation();
+		TargetRotation.Pitch = 0.0f;
+		TargetRotation.Roll = 0.0f;
+
+		TargetSmoothRotation = TargetRotation;
+		bRotatingToTarget = true;
+	}
+
+	GetCharacterMovement()->GroundFriction = 8.0f;
+	GetCharacterMovement()->BrakingDecelerationWalking = 2048.0f;
+
+	ExecuteRegularAttack();
+}
 
 void AMyWukongCharacter::ExecuteAttack()
 {
 	bIsMovingToTarget = false;
 	GetWorld()->GetTimerManager().ClearTimer(MoveToTargetTimer);
+	GetWorld()->GetTimerManager().ClearTimer(AttackCooldownTimer);
+	GetWorld()->GetTimerManager().ClearTimer(LightComboResetTimer);
+	GetWorld()->GetTimerManager().ClearTimer(AttackFailsafeHandle);
+	GetWorld()->GetTimerManager().ClearTimer(AttackFailsafeHandle);
+
+	if (GetCharacterMovement()->IsFalling())
+	{
+		AirAttack();
+		return;
+	}
 
 	if (CurrentTarget)
 	{
@@ -486,20 +646,16 @@ void AMyWukongCharacter::ExecuteAttack()
 		bRotatingToTarget = true;
 	}
 
-	GetCharacterMovement()->GroundFriction = 8.0f; 
-	GetCharacterMovement()->BrakingDecelerationWalking = 2048.0f; 
+	GetCharacterMovement()->GroundFriction = 8.0f;
+	GetCharacterMovement()->BrakingDecelerationWalking = 2048.0f;
 
-
-	if (GetCharacterMovement()->MovementMode == MOVE_Flying)
-	{
-		GetCharacterMovement()->SetMovementMode(MOVE_Walking);
-	}
-
-	if (GetCharacterMovement()->IsFalling())
-	{
-		AirAttack();
-		return;
-	}
+	FTimerHandle SafetyMovementTimer;
+	GetWorld()->GetTimerManager().SetTimer(SafetyMovementTimer, [this]() {
+		if (GetCharacterMovement()->MovementMode != MOVE_Walking)
+		{
+			GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+		}
+		}, 0.5f, false);
 
 	GetWorld()->GetTimerManager().ClearTimer(LightComboResetTimer);
 
@@ -514,7 +670,10 @@ void AMyWukongCharacter::ExecuteAttack()
 
 		FName const SectionName = GetAttackSectionName(SectionCount);
 
-		GetCharacterMovement()->DisableMovement();
+		if (!GetCharacterMovement()->IsFalling())
+		{
+			GetCharacterMovement()->DisableMovement();
+		}
 
 		FOnMontageEnded AttackEndedDelegate;
 		AttackEndedDelegate.BindUObject(this, &AMyWukongCharacter::OnAttackEnded);
@@ -523,6 +682,7 @@ void AMyWukongCharacter::ExecuteAttack()
 		AnimInstance->Montage_Play(MainAttackMontage);
 		AnimInstance->Montage_JumpToSection(SectionName, MainAttackMontage);
 
+
 		GetWorld()->GetTimerManager().SetTimer(LightComboResetTimer, this, &AMyWukongCharacter::ResetCombo, 4.0f, false);
 		GetWorld()->GetTimerManager().SetTimer(AttackCooldownTimer, [this]() {bCanAttack = true; }, 0.5f, false);
 	}
@@ -530,6 +690,11 @@ void AMyWukongCharacter::ExecuteAttack()
 	{
 		bIsAttacking = false;
 		bCanAttack = true;
+	}
+
+	if (GetCharacterMovement()->MovementMode != MOVE_Walking)
+	{
+		GetCharacterMovement()->SetMovementMode(MOVE_Walking);
 	}
 }
 
@@ -541,7 +706,28 @@ void AMyWukongCharacter::ClearAttackDelay()
 
 void AMyWukongCharacter::FindAttackTarget()
 {
+	if (bIsAttacking || bIsMovingToTarget || bIsDodging || bIsInHitReact)
+	{
+		return;
+	}
+
 	UpdateNearbyEnemies();
+
+	if (CurrentTarget && IsValid(CurrentTarget))
+	{
+		float CurrentDistance = FVector::Dist(GetActorLocation(), CurrentTarget->GetActorLocation());
+		if (CurrentDistance <= MaxAttackRange * 1.5f) 
+		{
+			return; 
+		}
+	}
+
+	if (NearbyEnemies.Num() == 0)
+	{
+		CurrentTarget = nullptr;
+		return;
+	}
+
 	FVector InputDirection = GetLastMovementInputVector();
 	if (InputDirection.IsNearlyZero())
 	{
@@ -549,18 +735,36 @@ void AMyWukongCharacter::FindAttackTarget()
 	}
 
 	AActor* BestTarget = nullptr;
-	float BestScore = 0.0f;
+	float BestScore = -1.0f;
 
 	for (AActor* Enemy : NearbyEnemies)
 	{
+		if (!IsValid(Enemy))
+		{
+			continue;
+		}
+
+		AEnemy* EnemyPawn = Cast<AEnemy>(Enemy);
+		if (!EnemyPawn)
+		{
+			continue;
+		}
+
 		FVector ToEnemy = (Enemy->GetActorLocation() - GetActorLocation()).GetSafeNormal();
 		float DotProduct = FVector::DotProduct(InputDirection, ToEnemy);
 		float Distance = FVector::Dist(GetActorLocation(), Enemy->GetActorLocation());
 
-		float Score = (DotProduct + 1.0f) * 0.5f; 
-		Score *= (1.0f - FMath::Clamp(Distance / MaxAttackRange, 0.0f, 1.0f));
+		if (Distance > MaxAttackRange)
+		{
+			continue;
+		}
 
-		if (Score > BestScore && Distance < MaxAttackRange)
+		float DistanceScore = 1.0f - FMath::Clamp(Distance / MaxAttackRange, 0.0f, 1.0f);
+		float DirectionScore = (DotProduct + 1.0f) * 0.5f;
+
+		float Score = (DistanceScore * 0.7f) + (DirectionScore * 0.3f);
+
+		if (Score > BestScore)
 		{
 			BestScore = Score;
 			BestTarget = Enemy;
@@ -589,6 +793,9 @@ void AMyWukongCharacter::UpdateNearbyEnemies()
 
 void AMyWukongCharacter::AirAttack()
 {
+	bIsAttacking = false;
+	bIsHeavyAttacking = false;
+
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 	if (AnimInstance && AirAttackMontage)
 	{
@@ -606,11 +813,26 @@ void AMyWukongCharacter::AirAttack()
 		AttackEndedDelegate.BindUObject(this, &AMyWukongCharacter::OnAttackEnded);
 		AnimInstance->Montage_SetEndDelegate(AttackEndedDelegate, AirAttackMontage);
 
+		AnimInstance->Montage_Stop(0.1f);
+
 		AnimInstance->Montage_Play(AirAttackMontage);
 
-		GetCharacterMovement()->Velocity = FVector::ZeroVector; 
+		GetCharacterMovement()->Velocity = FVector::ZeroVector;
 		LaunchCharacter(FVector(0, 0, -5000.0f), true, true);
-		
+
+		FTimerHandle AirAttackInputTimer;
+		GetWorld()->GetTimerManager().SetTimer(AirAttackInputTimer, [this, PC]() {
+			if (PC && bIsAirAttacking)
+			{
+				PC->SetIgnoreMoveInput(false);
+				PC->SetIgnoreLookInput(false);
+			}
+			}, 3.0f, false);
+	}
+	else
+	{
+		bIsAirAttacking = false;
+		bCanAttack = true;
 	}
 }
 
@@ -647,8 +869,28 @@ void AMyWukongCharacter::AOEDamage()
 
 void AMyWukongCharacter::HeavyAttack()
 {
+	if (bIsHeavyAttacking)
+	{
+		return;
+	}
+
+	if (GetWorld()->GetTimerManager().IsTimerActive(HeavyAttackCooldownTimer))
+	{
+		if (!bHeavyAttackDelay)
+		{
+			bHeavyAttackDelay = true;
+			GetWorld()->GetTimerManager().SetTimer(HeavyAttackInputBuffer, this, &AMyWukongCharacter::ClearHeavyAttackDelay, 1.0f, false);
+		}
+		return;
+	}
+
 	if (bIsDodging || bIsAttacking || !bCanAttack || bIsHeavyAttacking || !CanDodge || !bCanHeavyAttack || bIsInHitReact)
 	{
+		if (!bHeavyAttackDelay)
+		{
+			bHeavyAttackDelay = true;
+			GetWorld()->GetTimerManager().SetTimer(HeavyAttackInputBuffer, this, &AMyWukongCharacter::ClearHeavyAttackDelay, 1.0f, false);
+		}
 		return;
 	}
 
@@ -663,6 +905,11 @@ void AMyWukongCharacter::HeavyAttack()
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 	if (AnimInstance && HeavyAttackMontage)
 	{
+		if (AnimInstance->Montage_IsPlaying(HeavyAttackMontage))
+		{
+			AnimInstance->Montage_Stop(0.1f, HeavyAttackMontage);
+		}
+
 		AlreadyHitActors.Empty();
 		bIsHeavyAttacking = true;
 		bCanHeavyAttack = false;
@@ -678,13 +925,20 @@ void AMyWukongCharacter::HeavyAttack()
 		AttackEndedDelegate.BindUObject(this, &AMyWukongCharacter::OnAttackEnded);
 		AnimInstance->Montage_SetEndDelegate(AttackEndedDelegate, HeavyAttackMontage);
 
-		AnimInstance->Montage_Play(HeavyAttackMontage);
+		float const PlayRate = 1.0f;
+		AnimInstance->Montage_Play(HeavyAttackMontage, PlayRate);
 		AnimInstance->Montage_JumpToSection(HeavySectionName, HeavyAttackMontage);
 		
 		GetWorld()->GetTimerManager().SetTimer(HeavyComboResetTimer, this, &AMyWukongCharacter::ResetHeavyCombo, 2.0f, false);
 		GetWorld()->GetTimerManager().SetTimer(HeavyAttackCooldownTimer, [this]() {bCanHeavyAttack = true;}, HeavyAttackCooldownTime, false);
 
 	}
+}
+
+void AMyWukongCharacter::ClearHeavyAttackDelay()
+{
+	bHeavyAttackDelay = false;
+	GetWorld()->GetTimerManager().ClearTimer(HeavyAttackInputBuffer);
 }
 
 void AMyWukongCharacter::EnableMovement()
@@ -864,11 +1118,25 @@ void AMyWukongCharacter::DeactivateRightWeapon()
 	RightWeaponCollision->UpdateOverlaps();
 	bIsAttacking = false;
 	bIsHeavyAttacking = false;
+	bIsAirAttacking = false;
 	CanDodge = true;
-	bCanHeavyAttack = true;
-	FTimerHandle MovementTimer;
-	GetWorld()->GetTimerManager().SetTimer(MovementTimer,this,&AMyWukongCharacter::EnableMovement, DelayTimeForAttack, false);
-	/*GetCharacterMovement()->SetMovementMode(MOVE_Walking);*/
+	bCanAttack = true;
+	/*bCanHeavyAttack = true;*/
+
+	UCharacterMovementComponent* Movement = GetCharacterMovement();
+	if (Movement)
+	{
+		if (Movement->MovementMode != MOVE_Walking && !Movement->IsFalling())
+		{
+			Movement->SetMovementMode(MOVE_Walking);
+		}
+	}
+
+	if (GetCharacterMovement()->MovementMode != MOVE_Walking)
+	{
+		GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+	}
+
 }
 
 float AMyWukongCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
@@ -1028,7 +1296,6 @@ void AMyWukongCharacter::EndHitReaction()
 	if (!bIsInHitReact)
 		return;
 
-
 	bIsInHitReact = false;
 	bCanAttack = true;
 	bCanHeavyAttack = true;
@@ -1044,7 +1311,6 @@ void AMyWukongCharacter::EndHitReaction()
 
 void AMyWukongCharacter::OnHitReactionEnded(UAnimMontage* Montage, bool bInterrupted)
 {
-
 	EndHitReaction();
 }
 
@@ -1074,4 +1340,26 @@ void AMyWukongCharacter::ResetCombatState()
 
 	DeactivateRightWeapon();
 
+}
+
+void AMyWukongCharacter::AddHealth(float Amount)
+{
+	if (Amount <= 0.0f)
+	{
+		return;
+	}
+
+	float OldHealth = Health;
+	Health = FMath::Clamp(Health + Amount, 0.0f, MaxHealth);
+	float ActualHeal = Health - OldHealth;
+
+	if (GEngine && ActualHeal > 0.0f)
+	{
+		GEngine->AddOnScreenDebugMessage(
+			-1,
+			2.0f,
+			FColor::Green,
+			FString::Printf(TEXT("+%.0f Health"), ActualHeal)
+		);
+	}
 }

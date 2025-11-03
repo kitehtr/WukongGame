@@ -65,10 +65,10 @@ protected:
 	bool bCanBeStunned = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
-	float StunDuration = 2.0f;
+	float StunDuration = 1.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
-	float StunCooldown = 5.0f; 
+	float StunCooldown = 20.0f; 
 
 	FTimerHandle StunTimerHandle;
 	FTimerHandle StunCooldownTimerHandle;
