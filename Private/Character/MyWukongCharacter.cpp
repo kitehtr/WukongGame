@@ -450,6 +450,7 @@ void AMyWukongCharacter::ExecuteRegularAttack()
 
 void AMyWukongCharacter::ForceAttackEnd()
 {
+	bool bHasBufferedHeavyAttack = GetWorld()->GetTimerManager().IsTimerActive(HeavyAttackInputBuffer) && bHeavyAttackDelay;
 
 	GetWorld()->GetTimerManager().ClearTimer(AttackCooldownTimer);
 	GetWorld()->GetTimerManager().ClearTimer(AttackFailsafeHandle);
