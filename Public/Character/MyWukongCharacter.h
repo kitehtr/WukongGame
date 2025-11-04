@@ -6,6 +6,7 @@
 #include "Components/BoxComponent.h"
 #include "GameFramework/Character.h"
 #include "WukongCharacterInterface.h"
+#include "Project/WukongGame/Public/UI/UWB_ComboWidget.h"
 #include "Perception/AIPerceptionStimuliSourceComponent.h"
 #include "MyWukongCharacter.generated.h"
 
@@ -149,6 +150,60 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	bool CanDodge = true;
 
+	//scores
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combo")
+	int32 ComboCount;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combo")
+	float ComboScore;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
+	float ComboTimeLimit = 3.0f; 
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
+	float ComboMultiplier = 1.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
+	float BaseAttackScore = 10.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
+	float HeavyAttackScoreMultiplier = 2.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
+	float AirAttackScoreMultiplier = 1.5f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
+	TArray<FString> ComboRankNames = { "D", "C", "B", "A", "S"};
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combo")
+	TArray<int32> ComboRankThresholds = { 0, 50, 100, 200, 400, 800, 1500 };
+
+	FTimerHandle ComboDecayTimer;
+
+	// Functions
+	UFUNCTION(BlueprintCallable, Category = "Combo")
+	void AddComboHit(EAttackType AttackType);
+
+	UFUNCTION(BlueprintCallable, Category = "Combo")
+	void ResetComboScore();
+
+	UFUNCTION(BlueprintCallable, Category = "Combo")
+	void UpdateComboMultiplier();
+
+	UFUNCTION(BlueprintCallable, Category = "Combo")
+	FString GetComboRank() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Combo")
+	int32 GetComboCount() const { return ComboCount; }
+
+	UFUNCTION(BlueprintCallable, Category = "Combo")
+	float GetComboScore() const { return ComboScore; }
+
+	UFUNCTION(BlueprintCallable, Category = "Combo")
+	float GetComboMultiplier() const { return ComboMultiplier; }
+
+	void StartComboDecayTimer();
+
 
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta=(AllowPrivateAccess="true"))
@@ -269,9 +324,18 @@ private:
 
 	EAttackType CurrentAttackType;
 
+	//Enemy Vision 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "AI", meta = (AllowPrivateAccess = "true"))
 	UAIPerceptionStimuliSourceComponent* StimulusSource;
 
 	void SetupStimulusSource();
 
+	//UI
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "UI", meta = (AllowPrivateAccess = "true"))
+	TSubclassOf<class UUWB_ComboWidget> ComboWidgetClass;
+
+	UPROPERTY()
+	class UUWB_ComboWidget* ComboWidgetInstance;
+
+	void CreateComboWidget();
 };

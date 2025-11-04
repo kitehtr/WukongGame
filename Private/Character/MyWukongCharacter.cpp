@@ -12,6 +12,8 @@
 #include "Kismet/GameplayStatics.h"
 #include "Perception/AIPerceptionStimuliSourceComponent.h"
 #include "Perception/AISense_Sight.h"
+#include "Project/WukongGame/Public/UI/UWB_ComboWidget.h"
+#include "Blueprint/UserWidget.h"
 
 AMyWukongCharacter::AMyWukongCharacter() :
 	DefaultTurnRate(45.0f),
@@ -22,7 +24,10 @@ AMyWukongCharacter::AMyWukongCharacter() :
 	Health(100.0f),
 	MaxHealth(100.0f),
 	HeavyAttackCooldownTime(1.0f),
-	bCanHeavyAttack(true)
+	bCanHeavyAttack(true),
+	ComboCount(0),
+	ComboScore(0.0f),
+	ComboMultiplier(1.0f)
 
 {
 	SpringArmComponent = CreateDefaultSubobject<USpringArmComponent>(TEXT("Spring Arm"));
@@ -113,6 +118,25 @@ void AMyWukongCharacter::BeginPlay()
 	{
 		StimulusSource->RegisterForSense(UAISense_Sight::StaticClass());
 		StimulusSource->RegisterWithPerceptionSystem();
+	}
+
+	CreateComboWidget();
+}
+
+void AMyWukongCharacter::CreateComboWidget()
+{
+	if (ComboWidgetClass)
+	{
+		APlayerController* PC = Cast<APlayerController>(GetController());
+		if (PC)
+		{
+			ComboWidgetInstance = CreateWidget<UUWB_ComboWidget>(PC, ComboWidgetClass);
+			if (ComboWidgetInstance)
+			{
+				ComboWidgetInstance->AddToViewport();
+				ComboWidgetInstance->HideComboWidget();
+			}
+		}
 	}
 }
 
@@ -1017,17 +1041,13 @@ void AMyWukongCharacter::OnRightWeaponOverlap(UPrimitiveComponent* OverlappedCom
 			return;
 		}
 
-		//Check if the actor was already hit
-		if (AlreadyHitActors.Contains(SweepResult.GetActor()))
+		bool bIsEnemy = SweepResult.GetActor()->ActorHasTag("Enemy");
+		if (bIsEnemy && AlreadyHitActors.Contains(SweepResult.GetActor()))
 		{
 			return;
 		}
 
-		// Add to the set to prevent multiple hits
-		AlreadyHitActors.Add(SweepResult.GetActor());
-
 		IMeleeHitInterface* MeleeHitInterface = Cast<IMeleeHitInterface>(SweepResult.GetActor());
-
 		if (MeleeHitInterface)
 		{
 			MeleeHitInterface->MeleeHit_Implementation(SweepResult);
@@ -1046,10 +1066,115 @@ void AMyWukongCharacter::OnRightWeaponOverlap(UPrimitiveComponent* OverlappedCom
 			WeaponDamage = BaseDamage;
 			break;
 		}
+
 		UGameplayStatics::ApplyDamage(SweepResult.GetActor(), WeaponDamage, GetController(), this, UDamageType::StaticClass());
-			
+
+		if (bIsEnemy)
+		{
+			AlreadyHitActors.Add(SweepResult.GetActor());
+			AddComboHit(CurrentAttackType);
+		}
 	}
-	
+}
+void AMyWukongCharacter::AddComboHit(EAttackType AttackType)
+{
+	ComboCount++;
+
+	float ScoreToAdd = BaseAttackScore;
+
+	switch (AttackType)
+	{
+	case EAttackType::BasicAttack:
+		ScoreToAdd = BaseAttackScore;
+		break;
+	case EAttackType::HeavyAttack:
+		ScoreToAdd = BaseAttackScore * HeavyAttackScoreMultiplier;
+		break;
+	case EAttackType::AirAttack:
+		ScoreToAdd = BaseAttackScore * AirAttackScoreMultiplier;
+		break;
+	default:
+		ScoreToAdd = BaseAttackScore;
+		break;
+	}
+
+	UpdateComboMultiplier();
+	ComboScore += ScoreToAdd * ComboMultiplier;
+
+	FString ComboRank = GetComboRank();
+	if (ComboWidgetInstance)
+	{
+		ComboWidgetInstance->UpdateComboDisplay(ComboCount, ComboScore, ComboRank, ComboMultiplier);
+	}
+
+	StartComboDecayTimer();
+}
+
+void AMyWukongCharacter::ResetComboScore()
+{
+	if (ComboCount > 0)
+	{
+		if (ComboWidgetInstance)
+		{
+			ComboWidgetInstance->HideComboWidget();
+		}
+	}
+
+	ComboCount = 0;
+	ComboScore = 0.0f;
+	ComboMultiplier = 1.0f;
+
+	GetWorld()->GetTimerManager().ClearTimer(ComboDecayTimer);
+}
+
+void AMyWukongCharacter::UpdateComboMultiplier()
+{
+	if (ComboCount >= 50)
+	{
+		ComboMultiplier = 3.0f;
+	}
+	else if (ComboCount >= 30)
+	{
+		ComboMultiplier = 2.5f;
+	}
+	else if (ComboCount >= 20)
+	{
+		ComboMultiplier = 2.0f;
+	}
+	else if (ComboCount >= 10)
+	{
+		ComboMultiplier = 1.5f;
+	}
+	else if (ComboCount >= 5)
+	{
+		ComboMultiplier = 1.2f;
+	}
+	else
+	{
+		ComboMultiplier = 1.0f;
+	}
+}
+
+FString AMyWukongCharacter::GetComboRank() const
+{
+	for (int32 i = ComboRankThresholds.Num() - 1; i >= 0; i--)
+	{
+		if (ComboScore >= ComboRankThresholds[i])
+		{
+			if (i < ComboRankNames.Num())
+			{
+				return ComboRankNames[i];
+			}
+		}
+	}
+
+	return ComboRankNames.Num() > 0 ? ComboRankNames[0] : TEXT("D");
+}
+
+void AMyWukongCharacter::StartComboDecayTimer()
+{
+	GetWorld()->GetTimerManager().ClearTimer(ComboDecayTimer);
+	GetWorld()->GetTimerManager().SetTimer(ComboDecayTimer, this, &AMyWukongCharacter::ResetComboScore,ComboTimeLimit, false);
 }
 
 void AMyWukongCharacter::ResetCombo()
@@ -1173,6 +1298,7 @@ float AMyWukongCharacter::TakeDamage(float DamageAmount, FDamageEvent const& Dam
 		}
 
 		Health -= DamageAmount;
+		ResetComboScore();
 	}
 	return DamageAmount;
 }

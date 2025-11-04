@@ -9,6 +9,7 @@
 AEnemy::AEnemy() :
 	Health(100.0f),
 	MaxHealth(100.0f)
+
 {
 	PrimaryActorTick.bCanEverTick = true;
 
@@ -26,7 +27,7 @@ APatrolPath* AEnemy::GetPatrolPath() const
 void AEnemy::BeginPlay()
 {
 	Super::BeginPlay();
-	
+	Tags.Add("Enemy");
 	EnemyAIController = Cast <AEnemyAIController> (GetController());
 }
 
