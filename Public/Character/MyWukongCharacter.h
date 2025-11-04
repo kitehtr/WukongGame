@@ -63,14 +63,13 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Game Stats")
 	int32 EnemiesDefeated;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Game Stats")
-	float GameStartTime;
-
-	UFUNCTION(BlueprintCallable, Category = "Game Stats")
-	void StartGameTimer();
-
 	UFUNCTION(BlueprintCallable, Category = "Game Stats")
 	void AddEnemyDefeated();
+
+	UPROPERTY(BlueprintReadOnly, Category = "Game Stats")
+	float CurrentGameTime;
+
+	
 
 protected:
 	// Called when the game starts or when spawned

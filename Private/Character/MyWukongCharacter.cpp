@@ -61,6 +61,8 @@ void AMyWukongCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	CurrentGameTime = GetWorld()->GetTimeSeconds();
+
 	if (bRotatingToTarget)
 	{
 		FRotator CurrentRotation = GetActorRotation();
@@ -84,7 +86,6 @@ void AMyWukongCharacter::Tick(float DeltaTime)
 			SetActorRotation(TargetSmoothRotation);
 		}
 
-
 	}
 }
 
@@ -94,12 +95,6 @@ void AMyWukongCharacter::HandleOnMontageNotifyBegin(FName NotifyName, const FBra
 	{
 		bIsDodging = false;
 	}
-}
-
-void AMyWukongCharacter::StartGameTimer()
-{
-	GameStartTime = GetWorld()->GetTimeSeconds();
-	EnemiesDefeated = 0;
 }
 
 void AMyWukongCharacter::AddEnemyDefeated()
@@ -132,6 +127,7 @@ void AMyWukongCharacter::BeginPlay()
 	}
 
 	CreateComboWidget();
+	
 }
 
 void AMyWukongCharacter::CreateComboWidget()
