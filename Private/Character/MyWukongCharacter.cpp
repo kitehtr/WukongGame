@@ -450,40 +450,52 @@ void AMyWukongCharacter::ExecuteRegularAttack()
 
 void AMyWukongCharacter::ForceAttackEnd()
 {
+
 	GetWorld()->GetTimerManager().ClearTimer(AttackCooldownTimer);
 	GetWorld()->GetTimerManager().ClearTimer(AttackFailsafeHandle);
 	GetWorld()->GetTimerManager().ClearTimer(LightComboResetTimer);
 	GetWorld()->GetTimerManager().ClearTimer(HeavyComboResetTimer);
 	GetWorld()->GetTimerManager().ClearTimer(MoveToTargetTimer);
-	GetWorld()->GetTimerManager().ClearTimer(AttackInputBuffer);
-	GetWorld()->GetTimerManager().ClearTimer(HeavyAttackInputBuffer);
+
+	if (!bHasBufferedHeavyAttack)
+	{
+		bIsHeavyAttacking = false;
+		bCanHeavyAttack = true;
+	}
 
 	bIsAttacking = false;
-	bIsHeavyAttacking = false;
 	bIsAirAttacking = false;
 	bCanAttack = true;
-	bCanHeavyAttack = true;
 	CanDodge = true;
 	bIsMovingToTarget = false;
-	bAttackDelay = false;
-	bHeavyAttackDelay = false;
 
-	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+	/*UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 	if (AnimInstance)
 	{
-		if (MainAttackMontage && AnimInstance->Montage_IsPlaying(MainAttackMontage))
+		if (!bHasBufferedHeavyAttack)
 		{
-			AnimInstance->Montage_Stop(0.1f, MainAttackMontage);
+			if (MainAttackMontage && AnimInstance->Montage_IsPlaying(MainAttackMontage))
+			{
+				AnimInstance->Montage_Stop(0.1f, MainAttackMontage);
+			}
+			if (HeavyAttackMontage && AnimInstance->Montage_IsPlaying(HeavyAttackMontage))
+			{
+				AnimInstance->Montage_Stop(0.1f, HeavyAttackMontage);
+			}
 		}
-		if (HeavyAttackMontage && AnimInstance->Montage_IsPlaying(HeavyAttackMontage))
+		else
 		{
-			AnimInstance->Montage_Stop(0.1f, HeavyAttackMontage);
+			if (MainAttackMontage && AnimInstance->Montage_IsPlaying(MainAttackMontage))
+			{
+				AnimInstance->Montage_Stop(0.1f, MainAttackMontage);
+			}
 		}
+
 		if (AirAttackMontage && AnimInstance->Montage_IsPlaying(AirAttackMontage))
 		{
 			AnimInstance->Montage_Stop(0.1f, AirAttackMontage);
 		}
-	}
+	}*/
 
 	UCharacterMovementComponent* Movement = GetCharacterMovement();
 	if (Movement)
@@ -492,7 +504,6 @@ void AMyWukongCharacter::ForceAttackEnd()
 		{
 			Movement->SetMovementMode(MOVE_Walking);
 		}
-
 	}
 
 	DeactivateRightWeapon();
@@ -510,7 +521,7 @@ void AMyWukongCharacter::OnAttackEnded(UAnimMontage* Montage, bool bInterrupted)
 
 	if (bHeavyAttackDelay)
 	{
-		GetWorld()->GetTimerManager().SetTimer(HeavyAttackInputBuffer, this, &AMyWukongCharacter::BufferHeavyAttackInput, 0.8f, false);
+		GetWorld()->GetTimerManager().SetTimer(HeavyAttackInputBuffer, this, &AMyWukongCharacter::BufferHeavyAttackInput, 1.3f, false);
 	}
 
 	if (bAttackDelay)
@@ -535,7 +546,7 @@ void AMyWukongCharacter::BufferHeavyAttackInput()
 	{
 		bHeavyAttackDelay = false;
 		GetWorld()->GetTimerManager().ClearTimer(HeavyAttackInputBuffer);
-		HeavyAttack();
+		GetWorld()->GetTimerManager().SetTimer(HeavyAttackInputBuffer,[this](){HeavyAttack();},1.0f, false);
 	}
 }
 
@@ -583,12 +594,11 @@ void AMyWukongCharacter::MoveToTargetToAttack()
 	GetWorld()->GetTimerManager().SetTimer(SafetyTimer, [this]() {
 		if (bIsMovingToTarget)
 		{
-			ExecuteLockOnAttack(); // CHANGED: Use dedicated function
+			ExecuteLockOnAttack(); 
 		}
 		}, 1.0f, false);
 }
 
-// NEW: Dedicated function for lock-on attacks
 void AMyWukongCharacter::ExecuteLockOnAttack()
 {
 	bIsMovingToTarget = false;
@@ -905,9 +915,9 @@ void AMyWukongCharacter::HeavyAttack()
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 	if (AnimInstance && HeavyAttackMontage)
 	{
-		if (AnimInstance->Montage_IsPlaying(HeavyAttackMontage))
+		if (AnimInstance->Montage_IsPlaying(nullptr))
 		{
-			AnimInstance->Montage_Stop(0.1f, HeavyAttackMontage);
+			return;
 		}
 
 		AlreadyHitActors.Empty();
