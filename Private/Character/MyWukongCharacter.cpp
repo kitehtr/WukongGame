@@ -96,6 +96,17 @@ void AMyWukongCharacter::HandleOnMontageNotifyBegin(FName NotifyName, const FBra
 	}
 }
 
+void AMyWukongCharacter::StartGameTimer()
+{
+	GameStartTime = GetWorld()->GetTimeSeconds();
+	EnemiesDefeated = 0;
+}
+
+void AMyWukongCharacter::AddEnemyDefeated()
+{
+	EnemiesDefeated++;
+}
+
 void AMyWukongCharacter::BeginPlay()
 {
 	Super::BeginPlay();

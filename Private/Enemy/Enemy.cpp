@@ -3,6 +3,7 @@
 
 #include "../../Public/Enemy/Enemy.h"
 #include "../../Public/Enemy/EnemyAIController.h"
+#include "../../Public/Character/MyWukongCharacter.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
 // Sets default values
@@ -137,27 +138,35 @@ void AEnemy::MeleeHit_Implementation(FHitResult HitResult)
 
 float AEnemy::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
 {
+	if (bIsDead) return DamageAmount; 
+
 	if (Health - DamageAmount <= 0.0f)
 	{
-		//GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Green, TEXT("Enemy Died"));
+		bIsDead = true; 
 		Health = 0.0f;
 		bIsStunned = false;
 
 		if (EnemyAIController)
 		{
 			EnemyAIController->GetBrainComponent()->StopLogic("Dead");
+			if (GetWorld()->GetFirstPlayerController())
+			{
+				AMyWukongCharacter* Wukong = Cast<AMyWukongCharacter>(GetWorld()->GetFirstPlayerController()->GetPawn());
+				if (Wukong)
+				{
+					Wukong->AddEnemyDefeated();
+				}
+			}
 		}
 		EnemyDeath();
 	}
-	else 
+	else
 	{
 		Health -= DamageAmount;
 		if (DamageCauser)
 		{
 			FVector HitDirection = GetHitDirection(DamageCauser);
-
 			PlayDirectionalHitReaction(HitDirection);
-
 			PlayHitReaction(HitDirection);
 
 			if (bCanBeStunned && !bIsStunned)
@@ -169,4 +178,3 @@ float AEnemy::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AC
 
 	return DamageAmount;
 }
-

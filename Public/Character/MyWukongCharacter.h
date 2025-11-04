@@ -60,6 +60,18 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Health")
 	float GetMaxHealth() const { return MaxHealth; }
 
+	UPROPERTY(BlueprintReadOnly, Category = "Game Stats")
+	int32 EnemiesDefeated;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Game Stats")
+	float GameStartTime;
+
+	UFUNCTION(BlueprintCallable, Category = "Game Stats")
+	void StartGameTimer();
+
+	UFUNCTION(BlueprintCallable, Category = "Game Stats")
+	void AddEnemyDefeated();
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;

@@ -52,6 +52,9 @@ protected:
 	UFUNCTION(BlueprintImplementableEvent)
 	void EnemyDeath();
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Enemy")
+	bool bIsDead;
+
 	UFUNCTION(BlueprintImplementableEvent, Category = "Combat")
 	void PlayHitReaction(const FVector& HitDirection);
 
