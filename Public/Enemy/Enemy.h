@@ -88,7 +88,6 @@ protected:
 	FVector GetHitDirection(AActor* DamageCauser);
 	void PlayDirectionalHitReaction(const FVector& HitDirection);
 
-private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat", meta = (AllowPrivateAccess = "true"))
 	FName EnemyName;
 
@@ -103,5 +102,8 @@ private:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI", meta = (AllowPrivateAccess = "true"))
 	APatrolPath* PatrolPath;
+
+private:
+	
 
 };

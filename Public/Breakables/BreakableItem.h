@@ -42,7 +42,7 @@ protected:
 	float HealthReward = 20.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Reward")
-	float RewardRadius = 200.0f; 
+	float RewardRadius = 500.0f; 
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Reward")
 	bool bAutoCollectReward = true; 

@@ -21,5 +21,5 @@ public:
 
 private:
 	UPROPERTY(EditAnywhere, Category = "Token")
-	float RetryDelay = 1.0f;
+	float RetryDelay = 0.5f;
 };

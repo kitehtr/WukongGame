@@ -76,54 +76,78 @@ float ABreakableItem::TakeDamage(float DamageAmount, FDamageEvent const& DamageE
 
 void ABreakableItem::BreakObject()
 {
-	if (bIsBroken)
-	{
-		return;
-	}
+    if (bIsBroken)
+    {
+        return;
+    }
 
-	bIsBroken = true;
+    bIsBroken = true;
 
-	if (BreakParticle)
-	{
-		UGameplayStatics::SpawnEmitterAtLocation(
-			GetWorld(),
-			BreakParticle,
-			GetActorLocation(),
-			GetActorRotation()
-		);
-	}
+    if (BreakParticle)
+    {
+        UGameplayStatics::SpawnEmitterAtLocation(
+            GetWorld(),
+            BreakParticle,
+            GetActorLocation(),
+            GetActorRotation()
+        );
+    }
 
-	if (BreakSound)
-	{
-		UGameplayStatics::PlaySoundAtLocation(
-			this,
-			BreakSound,
-			GetActorLocation()
-		);
-	}
+    if (BreakSound)
+    {
+        UGameplayStatics::PlaySoundAtLocation(
+            this,
+            BreakSound,
+            GetActorLocation()
+        );
+    }
 
-	if (bAutoCollectReward)
-	{
-		TArray<AActor*> FoundActors;
-		UGameplayStatics::GetAllActorsOfClass(GetWorld(), AMyWukongCharacter::StaticClass(), FoundActors);
+    if (bAutoCollectReward)
+    {
+        bool bRewardGiven = false;
 
-		for (AActor* Actor : FoundActors)
-		{
-			AMyWukongCharacter* Player = Cast<AMyWukongCharacter>(Actor);
-			if (Player)
-			{
-				float Distance = FVector::Dist(GetActorLocation(), Player->GetActorLocation());
+        APlayerController* PlayerController = UGameplayStatics::GetPlayerController(this, 0);
+        if (PlayerController)
+        {
+            AMyWukongCharacter* Player = Cast<AMyWukongCharacter>(PlayerController->GetPawn());
+            if (Player)
+            {
+                float Distance = FVector::Dist(GetActorLocation(), Player->GetActorLocation());
 
-				if (Distance <= RewardRadius)
-				{
-					Player->AddHealth(HealthReward);
+                if (Distance <= RewardRadius)
+                {
+                    Player->AddHealth(HealthReward);
+                    bRewardGiven = true;
+                    UE_LOG(LogTemp, Log, TEXT("Player received %.1f health from breakable! Distance: %.2f"), HealthReward, Distance);
+                }
+                else
+                {
+                    UE_LOG(LogTemp, Warning, TEXT("Player too far from breakable: %.2f units (max: %.2f)"), Distance, RewardRadius);
+                }
+            }
+        }
 
-					UE_LOG(LogTemp, Log, TEXT("Player received %.1f health from breakable!"), HealthReward);
-					break;
-				}
-			}
-		}
-	}
+        if (!bRewardGiven)
+        {
+            TArray<AActor*> FoundActors;
+            UGameplayStatics::GetAllActorsOfClass(GetWorld(), AMyWukongCharacter::StaticClass(), FoundActors);
 
-	Destroy();
+            for (AActor* Actor : FoundActors)
+            {
+                AMyWukongCharacter* Player = Cast<AMyWukongCharacter>(Actor);
+                if (Player && Player->IsPlayerControlled()) // Additional check
+                {
+                    float Distance = FVector::Dist(GetActorLocation(), Player->GetActorLocation());
+
+                    if (Distance <= RewardRadius)
+                    {
+                        Player->AddHealth(HealthReward);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    Destroy();
 }

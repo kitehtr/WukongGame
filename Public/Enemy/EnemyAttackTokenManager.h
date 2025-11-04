@@ -36,7 +36,7 @@ public:
 	float TokenReassignDelay = 0.5f;
 
 	UPROPERTY(EditAnywhere, Category = "Token System")
-	float MaxTokenHoldTime = 5.0f;
+	float MaxTokenHoldTime = 2.0f;
 
 	UPROPERTY(EditAnywhere, Category = "Token System")
 	bool bUseDistancePriority = true;
