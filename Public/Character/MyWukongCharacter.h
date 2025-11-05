@@ -367,4 +367,6 @@ private:
 	class UUWB_ComboWidget* ComboWidgetInstance;
 
 	void CreateComboWidget();
+
+
 };

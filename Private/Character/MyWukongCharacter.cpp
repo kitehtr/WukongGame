@@ -64,7 +64,7 @@ void AMyWukongCharacter::Tick(float DeltaTime)
 
 	if (!bIsGamePaused)
 	{
-		CurrentGameTime = GetWorld()->GetTimeSeconds() - CurrentGameTime;
+		CurrentGameTime = GetWorld()->GetTimeSeconds();
 	}
 
 	if (bRotatingToTarget)
@@ -103,13 +103,18 @@ void AMyWukongCharacter::HandleOnMontageNotifyBegin(FName NotifyName, const FBra
 
 void AMyWukongCharacter::AddEnemyDefeated()
 {
-	EnemiesDefeated++;
+	if (EnemiesDefeated < 27)
+	{
+		EnemiesDefeated++;
+	}
+
 	CheckAchievements();
 }
 
 void AMyWukongCharacter::AddCoin(int32 CoinValue)
 {
 	CoinBalance++;
+	CheckAchievements();
 }
 
 void AMyWukongCharacter::UnlockAchievement(FName AchievementName)
@@ -143,15 +148,30 @@ void AMyWukongCharacter::CheckAchievements()
 		UnlockAchievement("Defeat an Enemy");
 	}
 
+	if (EnemiesDefeated >= 29 && !UnlockedAchievements.Contains("Defeat all Enemies"))
+	{
+		UnlockAchievement("Defeat all Enemies");
+	}
+
 	if (ComboCount >= 5 && !UnlockedAchievements.Contains("Obtain a combo of 5 or higher"))
 	{
 		UnlockAchievement("Obtain a combo of 5 or higher");
 	}
 
-	// Coin Collector
+	FString CurrentRank = GetComboRank();
+	if (CurrentRank == "S" && !UnlockedAchievements.Contains("Obtain an S rank!"))
+	{
+		UnlockAchievement("Obtain an S rank!");
+	}
+
 	if (CoinBalance >= 14 && !UnlockedAchievements.Contains("Collect every coin"))
 	{
 		UnlockAchievement("Collect every coin");
+	}
+
+	if (bIsGamePaused && !UnlockedAchievements.Contains("Demo Completed!"))
+	{
+		UnlockAchievement("Demo Completed!");
 	}
 }
 
@@ -1139,6 +1159,7 @@ void AMyWukongCharacter::OnRightWeaponOverlap(UPrimitiveComponent* OverlappedCom
 void AMyWukongCharacter::AddComboHit(EAttackType AttackType)
 {
 	ComboCount++;
+	CheckAchievements();
 
 	float ScoreToAdd = BaseAttackScore;
 
