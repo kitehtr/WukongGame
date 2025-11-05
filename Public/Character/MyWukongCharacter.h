@@ -76,10 +76,21 @@ public:
 	int CoinBalance = 0;
 
 	void AddCoin(int32 CoinValue);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Achievements")
+	TSubclassOf<UUserWidget> AchievementWidgetClass;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Achievements")
+	TSet<FName> UnlockedAchievements;
+
+	UFUNCTION(BlueprintCallable, Category = "Achievements")
+	void UnlockAchievement(FName AchievementName);
+
+	UFUNCTION(BlueprintCallable, Category = "Achievements")
+	void CheckAchievements();
 	
 
 protected:
-	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
 	//Movement and Camera

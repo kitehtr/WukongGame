@@ -13,6 +13,7 @@
 #include "Perception/AIPerceptionStimuliSourceComponent.h"
 #include "Perception/AISense_Sight.h"
 #include "Project/WukongGame/Public/UI/UWB_ComboWidget.h"
+#include "Project/WukongGame/Public/UI/WB_AchievementWidget.h"
 #include "Blueprint/UserWidget.h"
 
 AMyWukongCharacter::AMyWukongCharacter() :
@@ -103,11 +104,55 @@ void AMyWukongCharacter::HandleOnMontageNotifyBegin(FName NotifyName, const FBra
 void AMyWukongCharacter::AddEnemyDefeated()
 {
 	EnemiesDefeated++;
+	CheckAchievements();
 }
 
 void AMyWukongCharacter::AddCoin(int32 CoinValue)
 {
 	CoinBalance++;
+}
+
+void AMyWukongCharacter::UnlockAchievement(FName AchievementName)
+{
+	if (!UnlockedAchievements.Contains(AchievementName))
+	{
+		UnlockedAchievements.Add(AchievementName);
+
+		if (AchievementWidgetClass)
+		{
+			UWB_AchievementWidget* AchievementPopup = CreateWidget<UWB_AchievementWidget>(GetWorld(), AchievementWidgetClass);
+			if (AchievementPopup)
+			{
+				AchievementPopup->AddToViewport();
+
+				AchievementPopup->ShowAchievement(AchievementName.ToString());
+
+				AchievementPopup->StartAutoRemoveTimer();
+			}
+		}
+
+		/*UE_LOG(LogTemp, Warning, TEXT("Achievement Unlocked: %s"), *AchievementName.ToString());*/
+	}
+}
+
+void AMyWukongCharacter::CheckAchievements()
+{
+
+	if (EnemiesDefeated >= 1 && !UnlockedAchievements.Contains("Defeat an Enemy"))
+	{
+		UnlockAchievement("Defeat an Enemy");
+	}
+
+	if (ComboCount >= 5 && !UnlockedAchievements.Contains("Obtain a combo of 5 or higher"))
+	{
+		UnlockAchievement("Obtain a combo of 5 or higher");
+	}
+
+	// Coin Collector
+	if (CoinBalance >= 14 && !UnlockedAchievements.Contains("Collect every coin"))
+	{
+		UnlockAchievement("Collect every coin");
+	}
 }
 
 void AMyWukongCharacter::BeginPlay()
