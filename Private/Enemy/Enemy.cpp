@@ -60,7 +60,6 @@ void AEnemy::EndStun()
 
 	UE_LOG(LogTemp, Warning, TEXT("%s: Stun ended"), *GetName());
 
-	// Re-enable movement
 	if (UCharacterMovementComponent* MovementComp = GetCharacterMovement())
 	{
 		MovementComp->SetMovementMode(MOVE_Walking);
@@ -71,7 +70,19 @@ void AEnemy::EndStun()
 		EnemyAIController->GetBrainComponent()->RestartLogic();
 	}
 
-	GetWorld()->GetTimerManager().SetTimer(StunCooldownTimerHandle,[this](){bCanBeStunned = true;UE_LOG(LogTemp, Log, TEXT("%s: Can be stunned again"), *GetName());},StunCooldown,false);
+	if (!IsValid(this))
+	{
+		return;
+	}
+
+	TWeakObjectPtr<AEnemy> WeakThis(this);
+	GetWorld()->GetTimerManager().SetTimer(StunCooldownTimerHandle, [WeakThis]()
+		{
+			if (WeakThis.IsValid())
+			{
+				WeakThis->bCanBeStunned = true;
+			}
+		}, StunCooldown, false);
 }
 
 FVector AEnemy::GetHitDirection(AActor* DamageCauser)

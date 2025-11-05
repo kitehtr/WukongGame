@@ -61,7 +61,10 @@ void AMyWukongCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	CurrentGameTime = GetWorld()->GetTimeSeconds();
+	if (!bIsGamePaused)
+	{
+		CurrentGameTime = GetWorld()->GetTimeSeconds() - CurrentGameTime;
+	}
 
 	if (bRotatingToTarget)
 	{
@@ -100,6 +103,11 @@ void AMyWukongCharacter::HandleOnMontageNotifyBegin(FName NotifyName, const FBra
 void AMyWukongCharacter::AddEnemyDefeated()
 {
 	EnemiesDefeated++;
+}
+
+void AMyWukongCharacter::AddCoin(int32 CoinValue)
+{
+	CoinBalance++;
 }
 
 void AMyWukongCharacter::BeginPlay()

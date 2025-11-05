@@ -66,9 +66,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Game Stats")
 	void AddEnemyDefeated();
 
+	UPROPERTY(BlueprintReadWrite, Category = "Game Stats")
+	bool bIsGamePaused;
+
 	UPROPERTY(BlueprintReadOnly, Category = "Game Stats")
 	float CurrentGameTime;
 
+	UPROPERTY(BlueprintReadOnly, Category = "Game Stats")
+	int CoinBalance = 0;
+
+	void AddCoin(int32 CoinValue);
 	
 
 protected:
