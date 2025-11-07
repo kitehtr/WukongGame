@@ -1,32 +1,41 @@
+// Project Classes
 #include "../../Public/Character/MyWukongCharacter.h"
-#include "GameFramework/SpringArmComponent.h"
-#include "Engine/EngineTypes.h"  
-#include "Engine/World.h"
-#include "Engine/OverlapResult.h"
-#include "DrawDebugHelpers.h" 
-#include "Components/ShapeComponent.h"
-#include "Camera/CameraComponent.h"
-#include "GameFramework/CharacterMovementComponent.h"
-#include "../../Public/Enemy/MeleeHitInterface.h"
 #include "../../Public/Enemy/Enemy.h"
-#include "Kismet/GameplayStatics.h"
-#include "Perception/AIPerceptionStimuliSourceComponent.h"
-#include "Perception/AISense_Sight.h"
+#include "../../Public/Enemy/MeleeHitInterface.h"
 #include "Project/WukongGame/Public/UI/UWB_ComboWidget.h"
 #include "Project/WukongGame/Public/UI/WB_AchievementWidget.h"
+
+// Core Engine
+#include "Engine/EngineTypes.h"  
+#include "Engine/OverlapResult.h"
+#include "Engine/World.h"
+
+// Framework Components
+#include "Camera/CameraComponent.h"
+#include "Components/ShapeComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/SpringArmComponent.h"
+
+// Gameplay Utilities
 #include "Blueprint/UserWidget.h"
+#include "DrawDebugHelpers.h" 
+#include "Kismet/GameplayStatics.h"
+
+// AI System
+#include "Perception/AIPerceptionStimuliSourceComponent.h"
+#include "Perception/AISense_Sight.h"
 
 AMyWukongCharacter::AMyWukongCharacter() :
-	DefaultTurnRate(45.0f),
-	DefaultLookUpRate(45.0f),
-	WalkSpeed(750.0f),
-	RunSpeed(1500.0f),
-	BaseDamage(10.0f),
-	Health(100.0f),
-	MaxHealth(100.0f),
-	HeavyAttackCooldownTime(1.0f),
+	DefaultTurnRate(DEFAULT_TURN_RATE),
+	DefaultLookUpRate(DEFAULT_LOOK_UP_RATE),
+	WalkSpeed(WALK_SPEED),
+	RunSpeed(RUN_SPEED),
+	BaseDamage(BASE_DAMAGE),              
+	Health(MAX_HEALTH),                       
+	MaxHealth(MAX_HEALTH),                    
+	HeavyAttackCooldownTime(HEAVY_ATTACK_COOLDOWN), 
 	bCanHeavyAttack(true),
-	ComboCount(0),
+	ComboCount(0),                        
 	ComboScore(0.0f),
 	ComboMultiplier(1.0f)
 
@@ -49,10 +58,10 @@ AMyWukongCharacter::AMyWukongCharacter() :
 	GetCharacterMovement()->bOrientRotationToMovement = true;
 	GetCharacterMovement()->RotationRate = FRotator(0.0f, 540.0f, 0.0f);
 
-	GetCharacterMovement()->JumpZVelocity = 1000.0f;
-	GetCharacterMovement()->GravityScale = 1.25f;
-	GetCharacterMovement()->AirControl = 0.25f;
-	JumpMaxCount = 3;
+	GetCharacterMovement()->JumpZVelocity = JUMP_Z_VELOCITY;
+	GetCharacterMovement()->GravityScale = GRAVITY_SCALE;
+	GetCharacterMovement()->AirControl = AIR_CONTROL;
+	JumpMaxCount = MAX_JUMP_COUNT;
 
 	RightWeaponCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("Right Weapon Box"));
 	RightWeaponCollision->SetupAttachment(GetMesh(), FName("RightWeaponBone"));
