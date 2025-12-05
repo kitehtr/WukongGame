@@ -20,6 +20,7 @@
 #include "Blueprint/UserWidget.h"
 #include "DrawDebugHelpers.h" 
 #include "Kismet/GameplayStatics.h"
+#include "wukongGameMode.h"
 
 // AI System
 #include "Perception/AIPerceptionStimuliSourceComponent.h"

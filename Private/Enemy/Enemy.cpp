@@ -5,6 +5,7 @@
 #include "../../Public/Enemy/EnemyAIController.h"
 #include "../../Public/Character/MyWukongCharacter.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "wukongGameMode.h"
 
 // Sets default values
 AEnemy::AEnemy() :
@@ -156,6 +157,11 @@ float AEnemy::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AC
 		bIsDead = true; 
 		Health = 0.0f;
 		bIsStunned = false;
+
+		if (AwukongGameMode* GameMode = Cast<AwukongGameMode>(GetWorld()->GetAuthGameMode()))
+		{
+			GameMode->SaveGame();
+		}
 
 		if (EnemyAIController)
 		{
